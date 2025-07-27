@@ -1,0 +1,1 @@
+# Desktop test suite for Motivate.AI 
