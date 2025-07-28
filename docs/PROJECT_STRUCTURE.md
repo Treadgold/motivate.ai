@@ -17,8 +17,8 @@ motivate.ai/
 ├── pytest.ini                 # Global pytest configuration
 ├── .gitignore                  # Git ignore patterns
 │
-├── backend/                    # FastAPI REST API service
-├── desktop/                    # Python system tray application
+├── backend/                    # FastAPI REST API service (WORKING)
+├── desktop/                    # Python system tray application (FULLY FUNCTIONAL)
 ├── mobile/                     # React Native mobile app (future)
 ├── shared/                     # Shared configuration and utilities
 ├── docs/                       # Additional documentation
@@ -83,35 +83,65 @@ backend/
 └── venv/                      # Python virtual environment
 ```
 
+### Backend API Status: **WORKING**
+- ✅ **Project CRUD operations** with full database integration
+- ✅ **FastAPI REST endpoints** with automatic documentation
+- ✅ **SQLAlchemy models** for data persistence
+- ✅ **AI service integration** framework
+- ✅ **Comprehensive test suite** with multiple test categories
+- ✅ **Environment configuration** and error handling
+
 ## Desktop Structure (`desktop/`)
 
 ```
 desktop/
 ├── README.md                  # Desktop app documentation
-├── requirements.txt           # Python dependencies
+├── DESIGN_GUIDE.md           # Comprehensive architecture and development guide
+├── requirements.txt           # Python dependencies (simplified for stability)
 ├── .env                      # Environment variables (created by setup)
-├── main.py                   # Desktop application entry point
+├── main.py                   # Desktop application entry point and orchestrator
 │
-├── ui/                       # User interface components (future)
+├── ui/                       # User interface components (WORKING)
 │   ├── __init__.py
-│   ├── tray_menu.py          # System tray menu management
-│   ├── notifications.py      # Notification handling
-│   └── settings_dialog.py    # Settings interface
+│   ├── main_window.py        # Main task management interface (FULLY FUNCTIONAL)
+│   ├── new_project.py        # Project creation dialog (WORKING)
+│   ├── popup_manager.py      # Smart notification system
+│   ├── quick_add.py          # Quick task addition dialog
+│   └── components/           # Reusable UI components
+│       └── __init__.py
 │
-├── services/                 # Desktop-specific services
+├── services/                 # Background services (WORKING)
 │   ├── __init__.py
-│   ├── activity_monitor.py   # User activity monitoring
-│   ├── api_client.py         # Backend API communication
-│   └── notification_service.py # Notification management
+│   ├── tray_manager_fixed.py # System tray with queue-based communication (STABLE)
+│   └── idle_monitor.py       # Activity monitoring (temporarily disabled)
+│
+├── models/                   # Data models and state management
+│   └── __init__.py
+│
+├── assets/                   # Icons and UI resources
 │
 ├── tests/                    # Desktop application tests
 │   ├── __init__.py
 │   ├── test_main.py          # Main application tests
-│   └── [future_tests].py    # Additional test files
+│   ├── test_tray.py          # System tray functionality tests
+│   └── test_visible_tray.py  # Visual tray testing
 │
 ├── coverage_desktop/         # Coverage reports (generated)
-└── venv/                     # Python virtual environment
+├── venv/                     # Python virtual environment
+│
+├── start_desktop.bat         # Desktop app starter script
+├── create_shortcut.py        # Windows shortcut creation utility
+└── launch_app.py             # Alternative launcher
 ```
+
+### Desktop App Status: **FULLY FUNCTIONAL**
+- ✅ **System tray integration** with context menu
+- ✅ **Main window** with lightning-fast startup
+- ✅ **Project creation** with modal dialog and API integration
+- ✅ **Backend connectivity** with graceful offline fallback
+- ✅ **Thread-safe architecture** preventing Windows GIL errors
+- ✅ **Responsive UI** with no blocking operations
+- ⚠️ **Idle monitoring** temporarily disabled for stability
 
 ## Mobile Structure (`mobile/`) - Future
 
@@ -147,7 +177,17 @@ shared/
 docs/
 ├── GETTING_STARTED.md       # New user setup guide
 ├── PROJECT_STRUCTURE.md     # This document
-└── [future_docs]/           # Additional documentation
+└── [additional_docs]/       # Component-specific documentation
+```
+
+### Component Documentation
+```
+# Desktop-specific documentation
+desktop/DESIGN_GUIDE.md      # Desktop architecture and development guide
+desktop/README.md             # Desktop setup and usage
+
+# Backend-specific documentation  
+backend/README.md             # Backend setup and API documentation
 ```
 
 ## Scripts Structure (`scripts/`)
@@ -296,21 +336,62 @@ from services.ai_service import AIService
 - **Separate concerns** - Clear boundaries between layers
 - **Test everything** - Every component should have tests
 
+## Architecture Patterns (ESTABLISHED)
+
+### Desktop Threading Model
+The desktop application follows **strict threading discipline** to ensure Windows stability:
+
+```python
+# ✅ CORRECT - Main thread GUI operations
+class MotivateAIApp:
+    def __init__(self):
+        self.main_window = MainWindow()  # Created on main thread
+        self.main_window.root.withdraw() # Hidden initially
+        
+# ✅ CORRECT - Queue-based background communication  
+class TrayManager:
+    def __init__(self):
+        self.action_queue = queue.Queue()  # Thread-safe communication
+        
+    def show_main_window(self):
+        self.action_queue.put(("show_main_window", None))  # No direct GUI calls
+```
+
+### Key Patterns
+- **Pre-created UI Components**: All GUI objects created during app initialization
+- **Queue-based Communication**: Background threads communicate via queues
+- **Graceful Degradation**: Components work offline with fallback data
+- **Thread Safety**: `daemon=False` threads for Windows stability
+- **Error Recovery**: Auto-restart mechanisms for critical services
+
+### Component Communication
+```
+Main Application Loop
+├── Process tray actions from queue
+├── Update GUI components (main thread only)
+├── Handle API responses with timeouts
+└── Maintain responsive UI (root.update())
+```
+
 ## Integration Points
 
-### Backend ↔ Desktop
-- Desktop calls backend REST API
-- Configuration in `desktop/.env` points to backend URL
-- Shared data models (consider shared types in future)
+### Backend ↔ Desktop (WORKING)
+- ✅ **REST API Communication**: Desktop calls backend endpoints
+- ✅ **Project Management**: Full CRUD operations working
+- ✅ **Environment Configuration**: `desktop/.env` points to backend URL
+- ✅ **Graceful Fallback**: Desktop works offline with demo data
+- ✅ **Error Handling**: Robust network error recovery
+- ✅ **Real-time Updates**: Projects list refreshes after creation
 
 ### Backend ↔ Mobile (Future)
 - Mobile calls backend REST API
 - Offline data synchronization
 - Push notifications through backend
 
-### Common Configuration
-- Environment templates in `shared/`
-- Consistent API base URLs
-- Shared constants and configuration values
+### Common Configuration (IMPLEMENTED)
+- ✅ **Environment templates** in `shared/config.env.example`
+- ✅ **Consistent API base URLs** across components
+- ✅ **Shared port configuration** (8010 for backend)
+- ✅ **Standardized error handling** patterns
 
-This structure ensures the Motivate.AI project remains organized, maintainable, and accessible to new contributors while supporting rapid development and testing. 
+This structure has been proven through development of the working desktop and backend components. It ensures the Motivate.AI project remains organized, maintainable, and accessible to new contributors while supporting stable, responsive applications with robust error handling and cross-component integration. 

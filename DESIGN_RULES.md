@@ -34,9 +34,57 @@ motivate.ai/
 - **Testing**: pytest with coverage reporting
 
 #### Desktop
-- **Framework**: Python with pystray for system tray
-- **GUI**: Minimal - primarily notifications and simple dialogs
-- **Integration**: Windows-focused initially, with cross-platform consideration
+- **Framework**: Python with CustomTkinter for modern Windows UI
+- **System Integration**: pystray for system tray functionality  
+- **Threading Model**: Queue-based communication with pre-created GUI components
+- **Architecture**: Main thread GUI operations with background service threads
+- **Stability**: Windows-optimized patterns (daemon=False threads, error recovery)
+
+#### Desktop Threading Rules (CRITICAL)
+⚠️ **All GUI operations MUST happen on the main thread to avoid GIL errors on Windows**
+
+```python
+# ✅ CORRECT - Pre-created GUI on main thread
+class MotivateAIApp:
+    def __init__(self):
+        self.main_window = MainWindow()  # Created during app initialization
+        self.main_window.root.withdraw() # Hidden until needed
+        
+# ✅ CORRECT - Queue-based background communication
+class TrayManager:
+    def __init__(self):
+        self.action_queue = queue.Queue()  # Thread-safe communication
+        
+    def show_main_window(self):
+        self.action_queue.put(("show_main_window", None))  # No direct GUI calls
+
+# ✅ CORRECT - Main loop processes queued actions
+def main_loop(self):
+    while self.running:
+        self.process_tray_actions()      # Process queued GUI actions
+        self.main_window.root.update()   # Keep GUI responsive
+        time.sleep(0.1)                  # Prevent excessive CPU usage
+```
+
+#### Desktop Stability Patterns (ESTABLISHED)
+```python
+# Windows threading stability
+thread = threading.Thread(target=service, daemon=False)  # daemon=False for Windows
+
+# API calls with timeouts and fallbacks
+try:
+    response = requests.get(url, timeout=2)
+    return response.json()
+except Exception as e:
+    logger.warning(f"API unavailable: {e}")
+    return get_fallback_data()  # Always provide fallback
+
+# Error recovery for critical services
+def restart_service_if_failed(self):
+    if not self.service_thread.is_alive():
+        logger.info("Restarting failed service")
+        self.start_service()
+```
 
 #### Mobile (Future)
 - **Framework**: React Native for cross-platform support
@@ -47,6 +95,115 @@ motivate.ai/
 - **JavaScript in Backend**: Python-only backend [[memory:2259672]]
 - **Heavy UI Frameworks**: Keep desktop app lightweight
 - **Complex State Management**: Avoid overengineering
+
+## Desktop Application Architecture Patterns (ESTABLISHED)
+
+### Core Architecture Principles
+The desktop application follows **strict threading discipline** and **component isolation** patterns proven through development and testing on Windows systems.
+
+### Threading Architecture
+```
+Main Application Thread
+├── GUI Event Loop (CustomTkinter)
+├── Pre-created Window (hidden until needed)
+├── Queue Processing (for background actions)
+└── Periodic Updates (root.update() every 0.1s)
+
+Background Threads
+├── System Tray Thread (daemon=False, queue-based)
+├── Service Monitoring Thread (with auto-restart)
+└── API Request Threads (short-lived, no GUI operations)
+```
+
+### Component Communication Pattern
+```python
+# Background Thread → Queue → Main Thread → GUI Update
+background_thread.action_queue.put(("action_name", data))
+main_loop.process_queue_actions()  # Executed on main thread
+gui_component.update_display(data)  # Safe GUI operation
+```
+
+### Error Recovery Patterns
+```python
+# Service resilience with auto-restart
+class ServiceManager:
+    def monitor_service(self):
+        while self.running:
+            if not self.service_thread.is_alive():
+                self.restart_service()
+            time.sleep(1)
+    
+    def restart_service(self):
+        try:
+            self.service_thread = threading.Thread(
+                target=self.service_function, 
+                daemon=False  # Critical for Windows stability
+            )
+            self.service_thread.start()
+        except Exception as e:
+            logger.error(f"Service restart failed: {e}")
+```
+
+### API Integration Pattern
+```python
+# Graceful degradation with fallbacks
+def api_call_with_fallback(self, endpoint, fallback_data):
+    try:
+        response = requests.get(f"{self.api_base_url}/{endpoint}", timeout=2)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise requests.RequestException(f"API returned {response.status_code}")
+    except Exception as e:
+        logger.warning(f"API call failed: {e}")
+                 return fallback_data  # Always provide working fallback
+```
+
+### Critical Anti-Patterns (AVOID)
+Based on debugging experience, these patterns cause crashes and instability:
+
+```python
+# ❌ NEVER: Direct GUI calls from background threads
+def background_task():
+    window.update_text("Done")  # RuntimeError: main thread is not in main loop
+
+# ❌ NEVER: Creating GUI components from background threads  
+def tray_callback():
+    dialog = tkinter.Toplevel()  # GIL error on Windows
+
+# ❌ NEVER: daemon=True threads for critical services on Windows
+thread = threading.Thread(target=service, daemon=True)  # Causes crashes
+
+# ❌ NEVER: Blocking operations on main thread
+def load_projects():
+    response = requests.get(url)  # Freezes GUI if slow
+    update_ui(response.json())
+
+# ❌ NEVER: Async loading with root.after() from background threads
+def background_load():
+    data = get_data()
+    root.after(0, lambda: update_ui(data))  # RuntimeError
+```
+
+### Performance & Stability Guidelines
+```python
+# ✅ Pre-create UI components during initialization
+class App:
+    def __init__(self):
+        self.window = MainWindow()  # Created once
+        self.window.root.withdraw() # Hidden until needed
+
+# ✅ Use short timeouts for all API calls
+response = requests.get(url, timeout=2)  # Never block indefinitely
+
+# ✅ Always provide immediate feedback to users
+self.status_label.configure(text="Loading...")  # Show action immediately
+threading.Thread(target=self.load_data).start()  # Then load in background
+
+# ✅ Implement graceful error recovery
+if not self.service_thread.is_alive():
+    self.restart_service()  # Auto-recovery for failed services
+```
 
 ## Code Organization Standards
 
@@ -93,14 +250,26 @@ backend/
 └── requirements.txt   # Dependencies
 ```
 
-#### Desktop
+#### Desktop (FULLY FUNCTIONAL)
 ```
 desktop/
-├── ui/                 # User interface components
-├── services/           # Desktop-specific services
-├── tests/              # Desktop tests
-├── main.py            # Entry point
-└── requirements.txt   # Dependencies
+├── ui/                       # User interface components (WORKING)
+│   ├── __init__.py
+│   ├── main_window.py        # Main task management interface
+│   ├── new_project.py        # Project creation dialog
+│   ├── popup_manager.py      # Smart notification system
+│   ├── quick_add.py          # Quick task addition dialog
+│   └── components/           # Reusable UI components
+├── services/                 # Background services (WORKING)
+│   ├── __init__.py
+│   ├── tray_manager_fixed.py # System tray with queue communication
+│   └── idle_monitor.py       # Activity monitoring (temp. disabled)
+├── models/                   # Data models and state management
+├── assets/                   # Icons and UI resources
+├── tests/                    # Desktop application tests
+├── main.py                  # Application orchestrator and main loop
+├── DESIGN_GUIDE.md          # Comprehensive architecture documentation
+└── requirements.txt         # Dependencies (simplified for stability)
 ```
 
 ## Database Design Standards
@@ -396,4 +565,20 @@ async def health_check():
     }
 ```
 
-These design rules ensure consistent, maintainable, and scalable development of Motivate.AI while staying true to its core philosophy of compassionate productivity. 
+These design rules have been proven through development of the working desktop and backend components. They ensure consistent, maintainable, and scalable development of Motivate.AI while staying true to its core philosophy of compassionate productivity.
+
+## Implementation Status
+
+### ✅ Proven Patterns (In Production)
+- **Desktop Threading Architecture**: Queue-based communication prevents GIL errors
+- **Pre-created UI Components**: Instant window opening without creation delays
+- **API Integration with Fallbacks**: Graceful degradation when backend unavailable
+- **Error Recovery Mechanisms**: Auto-restart for failed services
+- **Windows Stability Patterns**: daemon=False threads, proper thread lifecycle
+
+### 📚 Reference Documentation
+- **desktop/DESIGN_GUIDE.md**: Comprehensive desktop architecture guide
+- **docs/PROJECT_STRUCTURE.md**: Current working project structure
+- **Component READMEs**: Setup and usage for each component
+
+These patterns have been tested extensively and provide a stable foundation for future development. 

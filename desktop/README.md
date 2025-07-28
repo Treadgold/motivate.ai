@@ -1,54 +1,62 @@
 # Motivate.AI Desktop Application
 
-A comprehensive desktop companion that provides gentle nudges, task management, and AI-guided project suggestions to help you reconnect with your unfinished projects.
+A modern desktop companion that provides task management, project organization, and system tray integration. Built with CustomTkinter for a native Windows experience.
 
-## 🌟 Features
+## 🌟 Current Features (Working Now!)
 
-### Core Functionality
-- **Modern Task Management UI**: Clean, responsive interface built with CustomTkinter
-- **Smart System Tray Integration**: Always accessible from the system tray
-- **Intelligent Idle Monitoring**: Detects when you're inactive and provides gentle suggestions
-- **Pop-up Interruption System**: Context-aware notifications that appear at optimal times
-- **Quick Task Addition**: Fast task entry without opening the full interface
-- **Project Organization**: Organize tasks by projects with visual project cards
+### ✅ Fully Functional
+- **📋 Project Management**: Create, view, and organize projects with visual cards
+- **🏠 Main Window Interface**: Clean, responsive task management UI
+- **🔔 System Tray Integration**: Always accessible from system tray with context menu
+- **➕ New Project Creation**: Complete modal dialog with form validation and API integration
+- **🔄 Real-time Updates**: Projects list refreshes automatically after creation
+- **💾 Backend Integration**: Full API connectivity with graceful offline fallback
+- **⚡ Lightning-Fast Startup**: Pre-created window architecture for instant response
 
-### Smart Notifications
-- **Gentle Nudges**: Encouraging reminders when you've been idle
-- **15-Minute Suggestions**: Quick actionable tasks to get you moving
-- **Progress Celebrations**: Positive reinforcement for completed tasks
-- **Contextual Suggestions**: AI-powered task recommendations based on your activity
+### 🎯 System Tray Menu
+Right-click the Motivate.AI icon to access:
+- **🏠 Open Main Window** ✅ Working
+- **➕ Quick Add Task** (Coming Soon)
+- **🎤 Voice Add Task** (Planned)
+- **⏰ Next Suggestion** (Planned)
+- **📊 Today's Progress** (Planned)
+- **⚙️ Settings** (Planned)
+- **❌ Exit** ✅ Working
 
-### User Experience
-- **Responsive Design**: Adapts to different screen sizes and preferences
-- **Quiet Hours**: Respects your sleep and focus time
-- **Do Not Disturb Mode**: Temporarily disable interruptions
-- **Frequency Control**: Smart limits to prevent notification fatigue
+### 🔧 Technical Highlights
+- **Thread-Safe Architecture**: Queue-based communication prevents GIL errors
+- **Stable on Windows**: Tested extensively on Windows 10/11
+- **Responsive UI**: No blocking operations, immediate user feedback
+- **Graceful Error Handling**: Works offline with demo data when backend unavailable
 
 ## 🏗️ Architecture
 
 ```
 desktop/
-├── ui/                     # User interface components
-│   ├── main_window.py      # Main task management interface
-│   ├── popup_manager.py    # Smart pop-up system
-│   ├── quick_add.py        # Quick task addition dialog
-│   └── components/         # Reusable UI components
-├── services/               # Desktop services
-│   ├── tray_manager.py     # System tray integration
-│   ├── idle_monitor.py     # Idle detection and monitoring
-│   └── speech_service.py   # Speech recognition (coming soon)
-├── models/                 # Data models and state
-└── main.py                # Application entry point
+├── main.py                     # Application orchestrator and main loop
+├── ui/                         # User interface components  
+│   ├── main_window.py          # Main task management interface
+│   ├── new_project.py          # Project creation dialog
+│   ├── popup_manager.py        # Smart notification system
+│   ├── quick_add.py            # Quick task addition dialog
+│   └── components/             # Reusable UI components
+├── services/                   # Background services
+│   ├── tray_manager_fixed.py   # System tray with queue communication
+│   ├── idle_monitor.py         # Activity monitoring (temporarily disabled)
+│   └── speech_service.py       # Speech recognition (planned)
+├── models/                     # Data models and state management
+├── assets/                     # Icons and UI resources
+└── DESIGN_GUIDE.md            # Comprehensive architecture documentation
 ```
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Python 3.9 or higher
-- Windows 10/11 (primary support)
-- Backend API running (optional - works offline)
+- **Windows 10/11** (primary support)
+- **Python 3.9 or higher**
+- **Backend API** running on port 8010 (optional - works offline)
 
-### Installation
+### Quick Setup
 
 1. **Install Dependencies**:
    ```bash
@@ -58,162 +66,197 @@ desktop/
 
 2. **Configure Environment**:
    ```bash
-   # Copy and edit the environment file
-   cp ../shared/config.env.example .env
+   # Copy environment template
+   cp .env.example .env
    
    # Edit .env with your settings:
-   # API_BASE_URL=http://localhost:8010/api/v1
-   # IDLE_THRESHOLD_MINUTES=10
+   API_BASE_URL=http://localhost:8010/api/v1
+   API_PORT=8010
+   IDLE_THRESHOLD_MINUTES=10
    ```
 
-3. **Run the Application**:
+3. **Start the Application**:
    ```bash
    python main.py
    ```
 
-## 🎯 Usage
+4. **Access via System Tray**:
+   - Look for Motivate.AI icon in system tray
+   - Right-click for menu options
+   - Click "🏠 Open Main Window" to start
 
-### System Tray Menu
-Right-click the Motivate.AI icon in your system tray to access:
+## 🎯 How to Use
 
-- **🏠 Open Main Window**: Full task management interface
-- **➕ Quick Add Task**: Fast task entry dialog
-- **🎤 Voice Add Task**: Speech-to-text task creation (coming soon)
-- **⏰ Next Suggestion**: Get an immediate AI suggestion
-- **📊 Today's Progress**: View your daily accomplishments
-- **⚙️ Settings**: Configure preferences and behavior
-- **❌ Exit**: Close the application
+### Creating Your First Project
+1. **Open Main Window**: Right-click tray icon → "🏠 Open Main Window"
+2. **Click "New Project"**: Button in the top toolbar
+3. **Fill Project Details**: 
+   - Project title (required)
+   - Description (optional) 
+   - Category selection
+   - Priority level
+4. **Click "Create Project"**: Project appears immediately in sidebar
 
-### Main Window Interface
-- **Project Sidebar**: View and manage your projects
-- **Task List**: See today's focus items with time estimates
-- **Filter Options**: View today's tasks, overdue items, or all tasks
-- **Progress Tracking**: Monitor daily completion statistics
+### Project Management
+- **View Projects**: Listed in left sidebar with task counts
+- **Project Cards**: Visual representation with key details
+- **Automatic Updates**: List refreshes after creating new projects
 
-### Smart Notifications
-The app intelligently monitors your activity and provides:
-
-- **Idle Nudges**: Gentle suggestions when you've been inactive
-- **Task Suggestions**: Specific 15-minute tasks to make progress
-- **Break Reminders**: Encouragement to take breaks during long work sessions
-- **Progress Celebrations**: Positive reinforcement for completed tasks
+### System Tray Features  
+- **Always Available**: App runs in background
+- **Quick Actions**: Right-click menu for common tasks
+- **Silent Operation**: No unnecessary notifications
 
 ## ⚙️ Configuration
 
-### Idle Monitoring Settings
-- **Threshold**: Set how long before you're considered idle (default: 10 minutes)
-- **Intervention Frequency**: Maximum pop-ups per hour (default: 4)
-- **Quiet Hours**: Set times when notifications are disabled
+### Environment Variables (`.env`)
+```bash
+# API Configuration
+API_BASE_URL=http://localhost:8010/api/v1
+API_PORT=8010
 
-### Notification Preferences
-- **Gentle Mode**: Use encouraging rather than demanding language
-- **Do Not Disturb**: Temporarily disable all interruptions
-- **Sound Notifications**: Enable/disable notification sounds
+# Feature Settings
+IDLE_THRESHOLD_MINUTES=10
 
-### UI Customization
-- **Theme**: Light/dark mode support
-- **Window Size**: Responsive design adapts to your preferences
-- **Sidebar**: Collapsible project sidebar
+# UI Preferences  
+WINDOW_WIDTH=1000
+WINDOW_HEIGHT=700
+```
 
-## 🔧 Technical Details
+### Backend Integration
+- **Online Mode**: Full API integration with live data sync
+- **Offline Mode**: Works with demo data when backend unavailable
+- **Graceful Fallback**: Automatic switching between modes
+- **Error Recovery**: Robust handling of network issues
 
-### Dependencies
-- **CustomTkinter**: Modern UI framework
-- **pystray**: System tray integration
-- **psutil**: System monitoring
-- **requests**: API communication
-- **Pillow**: Image processing for icons
-- **python-dotenv**: Environment configuration
+## 🔧 Technical Dependencies
+
+### Core Libraries
+- **CustomTkinter 5.2.0**: Modern UI framework for native Windows look
+- **pystray 0.19.4**: System tray integration
+- **requests 2.31.0**: HTTP API communication
+- **python-dotenv 1.0.0**: Environment configuration
+- **Pillow 10.0.0**: Image processing for UI assets
+- **psutil 5.9.5**: System monitoring capabilities
 
 ### Windows Integration
-- **Native Idle Detection**: Uses Windows API for accurate idle time
-- **System Notifications**: Native Windows notification system
-- **Auto-start**: Optional startup integration (coming soon)
-
-### API Integration
-- **Graceful Degradation**: Works offline with demo data
-- **Real-time Sync**: Automatically syncs with backend when available
-- **Error Handling**: Robust error handling for network issues
-
-## 🎤 Voice Integration (Coming Soon)
-
-Planned speech recognition features:
-- Voice commands for task creation
-- Hands-free task completion
-- Voice notes for project updates
-- Global hotkey activation
-
-## 🔒 Privacy & Data
-
-- **Local Processing**: Idle monitoring and notifications happen locally
-- **Minimal Data Collection**: Only syncs task data with your backend
-- **No Tracking**: No usage analytics or tracking
-- **Secure Communication**: HTTPS API communication
-
-## 🚀 Roadmap
-
-### Short Term
-- [ ] Speech recognition integration
-- [ ] Enhanced keyboard shortcuts
-- [ ] Settings configuration UI
-- [ ] Task timer functionality
-
-### Medium Term
-- [ ] Custom notification sounds
-- [ ] Advanced AI suggestions
-- [ ] Project templates
-- [ ] Export/import functionality
-
-### Long Term
-- [ ] Cross-platform support (macOS, Linux)
-- [ ] Plugin system
-- [ ] Advanced analytics
-- [ ] Mobile app synchronization
+- **Native UI**: CustomTkinter provides Windows 11 styling
+- **System Tray**: Native Windows tray integration
+- **Threading**: Windows-optimized threading model (`daemon=False`)
+- **Startup Integration**: Ready for Windows startup (batch files included)
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
-**App won't start:**
-- Check that all dependencies are installed: `pip install -r requirements.txt`
-- Verify Python version: `python --version` (should be 3.9+)
-- Check environment configuration in `.env` file
+**Application won't start:**
+```bash
+# Check Python version
+python --version  # Should be 3.9+
+
+# Reinstall dependencies
+pip install -r requirements.txt
+
+# Check environment file
+ls .env  # Should exist with API_BASE_URL
+```
 
 **No system tray icon:**
-- Ensure system tray is enabled in Windows settings
+- Ensure Windows system tray is enabled
 - Check if antivirus is blocking the application
 - Try running as administrator
+- Restart Windows Explorer: `taskkill /f /im explorer.exe && start explorer.exe`
 
-**Notifications not working:**
-- Verify Windows notification settings
-- Check Do Not Disturb mode in app settings
-- Confirm quiet hours configuration
+**Main window won't open:**
+- Check console output for error messages
+- Verify CustomTkinter installation: `pip show customtkinter`
+- Try running with debug: `python main.py --debug`
 
 **Backend connection issues:**
-- Verify backend is running: check `http://localhost:8010/health`
-- App works offline with demo data if backend unavailable
-- Check API_BASE_URL in `.env` file
+- Verify backend is running: visit `http://localhost:8010/health`
+- Check `.env` file has correct `API_BASE_URL`
+- App works offline - backend connection is optional
+
+**Project creation not working:**
+- Check console for API error messages
+- Verify backend `/api/v1/projects` endpoint is accessible
+- Form validation errors will show in dialog
 
 ### Debug Mode
-Run with debug output:
+Enable detailed logging:
 ```bash
 python main.py --debug
 ```
 
-## 📝 Logging
+### Log Files
+Check for error details:
+- **Console Output**: Real-time debugging information
+- **Application State**: Printed during startup sequence
 
-Logs are written to:
-- Console output (real-time)
-- `logs/desktop.log` (persistent)
+## 📊 Performance & Stability
 
-## 🤝 Contributing
+### Optimizations
+- **Pre-created UI**: Main window created at startup for instant opening
+- **Thread Safety**: Queue-based communication prevents GIL errors
+- **Short Timeouts**: 2-second API timeouts prevent UI blocking
+- **Memory Efficient**: Lightweight component architecture
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+### Stability Features
+- **Error Recovery**: Graceful handling of component failures
+- **Restart Logic**: System tray auto-restart on Windows crashes
+- **Thread Isolation**: Background services don't affect GUI responsiveness
+- **Resource Cleanup**: Proper shutdown handling
+
+## 🔮 Roadmap
+
+### Near Term (Next Releases)
+- [ ] **Quick Add Task**: Fast task entry from tray menu
+- [ ] **Settings Dialog**: Configure preferences via GUI
+- [ ] **Task Management**: View and edit tasks within projects
+- [ ] **Re-enable Idle Monitoring**: Smart activity tracking with stability fixes
+
+### Medium Term  
+- [ ] **Enhanced Project Views**: Different layouts and filtering options
+- [ ] **Keyboard Shortcuts**: Global hotkeys for common actions
+- [ ] **Import/Export**: Project data backup and restore
+- [ ] **Custom Themes**: UI appearance customization
+
+### Long Term
+- [ ] **Cross-Platform**: macOS and Linux support
+- [ ] **Voice Integration**: Speech-to-text task creation
+- [ ] **Smart Suggestions**: AI-powered task recommendations
+- [ ] **Mobile Sync**: Integration with mobile app (when available)
+
+## 📚 Documentation
+
+- **DESIGN_GUIDE.md**: Comprehensive architecture and development guide
+- **API Documentation**: See backend `/docs` for API reference
+- **Threading Best Practices**: Critical for Windows stability
+
+## 🤝 Development
+
+### Key Principles
+1. **All GUI operations on main thread** (prevents GIL errors)
+2. **Queue-based communication** between components
+3. **Component isolation** for maintainable code
+4. **Graceful degradation** when services unavailable
+
+### Adding Features
+1. Read `DESIGN_GUIDE.md` for architecture patterns
+2. Follow threading guidelines strictly
+3. Test on clean Windows environment
+4. Ensure graceful error handling
+
+### Testing Approach
+- **Component isolation**: Test each service independently
+- **Threading stress tests**: Rapid user interactions
+- **API failure simulation**: Test offline behavior
+- **UI responsiveness**: Measure interaction delays
 
 ## 📄 License
 
-See the main project LICENSE file for licensing information. 
+See the main project LICENSE file for licensing information.
+
+---
+
+**🎉 Status**: **Fully Functional Core Features** - Ready for daily use with project management and system tray integration! 
