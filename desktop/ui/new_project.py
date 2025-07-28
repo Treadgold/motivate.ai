@@ -18,7 +18,7 @@ class NewProjectDialog:
     def __init__(self, parent=None, on_project_created: Optional[Callable] = None):
         self.parent = parent
         self.on_project_created = on_project_created
-        self.api_base_url = os.getenv("API_BASE_URL", "http://localhost:8010/api/v1")
+        self.api_base_url = os.getenv("API_BASE_URL", "http://127.0.0.1:8010/api/v1")
         
         # Dialog window
         self.dialog = ctk.CTkToplevel(parent)

@@ -36,7 +36,7 @@ class MotivateAIApp:
     """Main application class that coordinates all components"""
     
     def __init__(self):
-        self.api_base_url = os.getenv("API_BASE_URL", "http://localhost:8010/api/v1")
+        self.api_base_url = os.getenv("API_BASE_URL", "http://127.0.0.1:8010/api/v1")
         self.idle_threshold = int(os.getenv("IDLE_THRESHOLD_MINUTES", "10"))
         
         # Application state
@@ -191,6 +191,8 @@ class MotivateAIApp:
                 if self.main_window and self.main_window.root.winfo_exists():
                     try:
                         self.main_window.root.update()
+                        # Process any pending updates
+                        self.main_window.process_pending_updates()
                     except:
                         pass  # Window might be destroyed
                 
@@ -255,10 +257,8 @@ class MotivateAIApp:
                 self.main_window = MainWindow()
                 print("✅ Main window created")
             
-            # Show and focus the window
-            self.main_window.root.deiconify()  # Show the window
-            self.main_window.root.lift()       # Bring to front
-            self.main_window.root.focus_force() # Give it focus
+            # Show window and process any pending updates
+            self.main_window.show_window()
             print("✅ Main window opened")
             
         except Exception as e:

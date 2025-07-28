@@ -1,13 +1,14 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from sqlalchemy.orm import Session
 import os
 
 # Load environment variables
 load_dotenv()
 
 # Import database setup
-from database import create_tables
+from database import create_tables, get_db
 
 app = FastAPI(
     title="Motivate.AI API",
@@ -49,6 +50,16 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+@app.get("/test-simple")
+async def test_simple():
+    """Simple endpoint with no dependencies"""
+    return {"message": "Simple test", "timestamp": "2024-01-01"}
+
+@app.get("/test-db")
+async def test_db(db: Session = Depends(get_db)):
+    """Test endpoint with database dependency"""
+    return {"message": "DB test", "count": 42}
 
 if __name__ == "__main__":
     import uvicorn

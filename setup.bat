@@ -38,7 +38,7 @@ if not exist "desktop\.env" (
         echo   + Created desktop\.env
     ) else (
         echo   ! shared\config.env.example not found - creating basic .env
-        echo API_BASE_URL=http://localhost:8010/api/v1 > "desktop\.env"
+        echo API_BASE_URL=http://127.0.0.1:8010/api/v1 > "desktop\.env"
         echo IDLE_THRESHOLD_MINUTES=10 >> "desktop\.env"
     )
 ) else (

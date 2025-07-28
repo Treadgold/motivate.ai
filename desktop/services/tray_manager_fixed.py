@@ -18,7 +18,7 @@ from typing import Optional, Callable
 class TrayManager:
     def __init__(self, main_window=None):
         self.main_window = main_window
-        self.api_base_url = os.getenv("API_BASE_URL", "http://localhost:8010/api/v1")
+        self.api_base_url = os.getenv("API_BASE_URL", "http://127.0.0.1:8010/api/v1")
         self.tray_icon = None
         self.running = False
         self.tray_thread = None
