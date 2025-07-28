@@ -1,7 +1,14 @@
 import pytest
+import sys
+from pathlib import Path
 from unittest.mock import Mock, patch, AsyncMock
 import httpx
-from backend.services.ai_service import AIService
+
+# Add the backend directory to Python path
+backend_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(backend_dir))
+
+from services.ai_service import AIService
 
 class TestAIService:
     """Test suite for AI service functionality"""

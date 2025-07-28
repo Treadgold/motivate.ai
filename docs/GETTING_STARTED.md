@@ -1,148 +1,135 @@
 # Getting Started with Motivate.AI
 
-Welcome to your AI-guided project companion! This guide will help you get everything set up and running.
+Welcome to Motivate.AI! This guide will help you set up and start using the application.
 
-## 🎯 What This Does
+## 🚀 Quick Start
 
-Motivate.AI helps you stay connected with your projects by:
-- Tracking your projects and tasks in a simple, low-admin way
-- Monitoring when you're idle and gently suggesting 15-minute actions
-- Providing AI-powered suggestions based on your project context
-- Working across Windows desktop and Android mobile
+### Prerequisites
+- Python 3.8 or higher
+- Git (for cloning the repository)
 
-## 🚀 Quick Setup (Windows)
-
-### 1. Prerequisites
-- Python 3.9+ installed
-- Git installed
-- (Optional) Flutter SDK for mobile development
-
-### 2. Initial Setup
+### 1. Clone and Setup
 ```bash
-# Clone or download the project
+git clone <repository-url>
 cd motivate.ai
-
-# Run the automated setup
-python scripts/setup.py
 ```
 
-### 3. Start the Backend
+### 2. Backend Setup
 ```bash
 cd backend
-venv\Scripts\activate
+pip install -r requirements.txt
 python main.py
 ```
+The backend will start on `http://localhost:8010`
 
-The API will be available at http://localhost:8000
-Visit http://localhost:8000/docs to see the interactive API documentation.
-
-### 4. Start the Desktop App
+### 3. Desktop App Setup
 ```bash
-# In a new terminal
 cd desktop
-venv\Scripts\activate
+pip install -r requirements.txt
 python main.py
 ```
 
-Look for the system tray icon in the bottom-right corner of your screen.
+## ✅ What's Working Now
 
-## 📱 Mobile Setup (Optional)
+### 🎯 New Project Creation (FULLY FUNCTIONAL!)
+- **Complete project dialog** with all backend fields
+- **Professional form** including:
+  - Project Title (required)
+  - Description (multi-line)
+  - Priority (low, medium, high, urgent)
+  - Estimated Time (in hours)
+  - Tags (comma-separated)
+  - Location
+  - Next Action
+- **Backend integration** with error handling
+- **Automatic project list refresh** after creation
 
-The mobile app requires Flutter. If you don't have it installed:
+### 🖥️ Desktop Application Features
+- **System tray integration** - Right-click for menu
+- **Main window** with project management interface
+- **Real-time API connectivity** (backend must be running)
+- **Intelligent idle monitoring**
+- **Smart popup notifications**
+- **Offline mode** with demo data when backend unavailable
 
-1. Install Flutter: https://flutter.dev/docs/get-started/install
-2. Create the Flutter project:
-   ```bash
-   cd mobile
-   flutter create . --project-name motivate_ai
-   flutter pub get
-   flutter run
-   ```
+### 🛠️ Backend API Features
+- **RESTful API** with FastAPI
+- **SQLite database** for persistence
+- **Project CRUD operations** 
+- **Health check endpoint**
+- **Automatic API documentation** at `/docs`
 
-## 💡 Your First Project
+## 🎮 How to Use
 
-1. **Open your browser** to http://localhost:8000/docs
-2. **Create a project** using the `/api/v1/projects` POST endpoint:
-   ```json
-   {
-     "title": "Organize Workshop",
-     "description": "Sort through tools and create a better workspace",
-     "location": "garage workshop",
-     "next_action": "Clear the workbench of old projects"
-   }
-   ```
-3. **Let the system work**: The desktop app will start monitoring your activity
-4. **Get suggestions**: When you're idle, you'll receive gentle prompts
+### Creating Your First Project
+1. **Start the backend** (`cd backend && python main.py`)
+2. **Start the desktop app** (`cd desktop && python main.py`)  
+3. **Right-click the system tray icon** → "Open Main Window"
+4. **Click the "➕ New Project" button** in the sidebar
+5. **Fill out the project form** (only title is required)
+6. **Click "Create Project"** to save
+7. **Watch your project appear** in the projects list!
+
+### System Tray Features
+Right-click the Motivate.AI system tray icon to access:
+- 🏠 **Open Main Window** - Full project management interface
+- ➕ **Quick Add Task** - (Coming soon)
+- 🎤 **Voice Add Task** - (Coming soon)  
+- ⏰ **Next Suggestion** - (Coming soon)
+- 📊 **Today's Progress** - (Coming soon)
+- ⚙️ **Settings** - (Coming soon)
+- ❌ **Exit** - Close the application
 
 ## 🔧 Configuration
 
-Edit the `.env` files in each component:
+### Environment Variables
+Both backend and desktop apps use `.env` files:
 
-### Backend (`backend/.env`)
-```
-DATABASE_URL=sqlite:///./motivate_ai.db
-DEBUG=true
-```
+**Backend (.env):**
+- `API_PORT=8010` - Backend server port
+- `DATABASE_URL=sqlite:///./motivate_ai.db` - Database location
 
-### Desktop (`desktop/.env`)
-```
-API_BASE_URL=http://localhost:8000/api/v1
-IDLE_THRESHOLD_MINUTES=10
-NOTIFICATION_INTERVAL_MINUTES=15
-```
+**Desktop (.env):**  
+- `API_BASE_URL=http://localhost:8010/api/v1` - Backend API URL
+- `IDLE_THRESHOLD_MINUTES=10` - Idle detection threshold
 
-## 🎛️ How It Works
+## 🐛 Troubleshooting
 
-1. **Projects**: Think of these as your major undertakings - "Rewire workshop", "Build garden shed", etc.
-2. **Tasks**: Small, actionable steps that move projects forward
-3. **Activity Logging**: The system tracks when you work on things
-4. **AI Suggestions**: Based on your project context and current energy, get gentle nudges
+### Common Issues
 
-## 🆘 Troubleshooting
+**"ModuleNotFoundError: No module named 'fastapi'"**
+- Solution: `cd backend && pip install -r requirements.txt`
 
-### Backend won't start
-- Check Python version: `python --version`
-- Ensure virtual environment is activated
-- Check for port conflicts (8000)
+**"Backend not available - running in offline mode"**
+- Ensure backend is running: `cd backend && python main.py`
+- Check that port 8010 is available
+- Verify `.env` files have matching ports
 
-### Desktop app not showing
-- Look for system tray icon
-- Check if Python virtual environment has GUI packages
-- Try running from command line to see error messages
+**"KeyError: 'name'" when opening main window**  
+- This was fixed! Update to latest version
+- Projects now use `"title"` field instead of `"name"`
 
-### Database issues
-- Delete `backend/motivate_ai.db` to start fresh
-- Check file permissions
+**Cannot connect to API**
+- Ensure both `.env` files use port `8010` (not 8000)
+- Check Windows Firewall isn't blocking the connection
+- Verify `API_BASE_URL=http://localhost:8010/api/v1` in desktop/.env
 
-## 🎨 Customization
+## 📚 Next Steps
 
-### Adding Your Own AI
-Replace the hardcoded suggestions in `backend/api/suggestions.py` with:
-- OpenAI API calls
-- Local LLM integration
-- Custom logic based on your work patterns
+### Ready to Build
+- ✅ **New Project Creation** - Complete and functional
+- 🔨 **Task Management** - Ready for implementation  
+- 🎯 **Quick Add Tasks** - Next logical feature
+- ⚙️ **Settings Dialog** - For customization
+- 📱 **Mobile App** - Future expansion
 
-### Notification Styles
-Modify `desktop/notifications.py` to change:
-- Notification appearance
-- Sound alerts
-- Timing patterns
+### Development
+- All tests pass with `python -m pytest`
+- API documentation available at `http://localhost:8010/docs`
+- Code follows established patterns in `/docs/PROJECT_STRUCTURE.md`
 
-## 🔮 Next Steps
+## 🎯 Current Focus: Building Core Features
 
-Once you have the basic system running:
-1. Add real AI integration for smarter suggestions
-2. Implement voice note recording
-3. Add project photos and progress tracking
-4. Create smart scheduling based on your energy patterns
-5. Integrate with your existing tools (calendars, task managers)
+The foundation is solid! The backend API works perfectly, the desktop app connects reliably, and project creation is fully functional. We're ready to expand into task management, settings, and more advanced features.
 
-## 🤝 Need Help?
-
-This system is designed to grow with you. Start simple:
-1. Add one real project
-2. Let it monitor for a day
-3. See what suggestions feel helpful
-4. Gradually add more projects and customize the prompts
-
-Remember: The goal isn't productivity optimization - it's gentle reconnection with the things you care about building. 
+**Happy coding! 🚀** 

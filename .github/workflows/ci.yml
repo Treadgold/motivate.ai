@@ -117,15 +117,15 @@ jobs:
     - name: Run integration tests
       run: |
         # Test API health
-        curl -f http://localhost:8000/health
+        curl -f http://localhost:8010/health
         
         # Test project creation
-        curl -f -X POST "http://localhost:8000/api/v1/projects" \
+        curl -f -X POST "http://localhost:8010/api/v1/projects" \
           -H "Content-Type: application/json" \
           -d '{"title":"CI Test Project","description":"Integration test project"}'
           
         # Test AI service (may fail if Ollama not properly started)
-        curl http://localhost:8000/api/v1/ai/health || echo "AI service test failed (expected)"
+        curl http://localhost:8010/api/v1/ai/health || echo "AI service test failed (expected)"
 
   lint-and-format:
     name: Code Quality

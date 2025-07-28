@@ -10,7 +10,7 @@ if not exist "desktop\venv\Scripts\activate.bat" (
 )
 
 echo Make sure the backend is running first!
-echo Backend should be at: http://localhost:8000
+echo Backend should be at: http://localhost:8010
 echo.
 echo The desktop app will run in the system tray.
 echo Look for the icon in the bottom-right corner.

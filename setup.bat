@@ -38,7 +38,7 @@ if not exist "desktop\.env" (
         echo   + Created desktop\.env
     ) else (
         echo   ! shared\config.env.example not found - creating basic .env
-        echo API_BASE_URL=http://localhost:8000/api/v1 > "desktop\.env"
+        echo API_BASE_URL=http://localhost:8010/api/v1 > "desktop\.env"
         echo IDLE_THRESHOLD_MINUTES=10 >> "desktop\.env"
     )
 ) else (
@@ -170,7 +170,7 @@ echo    venv\Scripts\activate
 echo    python main.py
 echo.
 echo 3. Open your browser to:
-echo    http://localhost:8000/docs
+echo    http://localhost:8010/docs
 echo.
 echo 4. For AI suggestions, make sure Ollama is running:
 echo    ollama serve

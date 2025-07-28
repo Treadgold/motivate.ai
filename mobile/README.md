@@ -49,7 +49,7 @@ mobile/
 
 Update `lib/config/api_config.dart`:
 ```dart
-const String API_BASE_URL = 'http://your-backend-url:8000/api/v1';
+const String API_BASE_URL = 'http://your-backend-url:8010/api/v1';
 ```
 
 For local development, use your computer's IP address instead of localhost. 

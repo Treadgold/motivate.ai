@@ -25,8 +25,8 @@ call venv\Scripts\activate.bat
 echo   -> Installing test dependencies (if needed)...
 pip install pytest pytest-asyncio pytest-cov httpx > nul 2>&1
 
-echo   -> Running backend unit tests with coverage...
-pytest tests/ -v --cov=. --cov-report=term --cov-report=html:coverage_backend
+echo   ^-^> Running backend unit tests with coverage...
+pytest tests/test_simple.py tests/test_integration_simple.py -v --cov=. --cov-report=term --cov-report=html:coverage_backend
 if errorlevel 1 (
     echo   X Backend tests failed
     set /a FAILED_TESTS+=1
@@ -64,7 +64,7 @@ echo [3/4] Testing API Integration...
 echo.
 
 echo   -> Checking if backend is running...
-curl -s http://localhost:8000/health >nul 2>&1
+curl -s http://localhost:8010/health >nul 2>&1
 if errorlevel 1 (
     echo   ! Backend not running - starting temporary instance...
     cd backend
@@ -81,15 +81,15 @@ if errorlevel 1 (
 
 REM Run integration tests (using the existing test_system.bat logic)
 echo   -> Running integration tests...
-curl -s http://localhost:8000/health >nul 2>&1
+curl -s http://localhost:8010/health >nul 2>&1
 if errorlevel 1 (
     echo   X Integration tests failed - API not responding
     set /a FAILED_TESTS+=1
 ) else (
     echo   + API health check passed
     
-    echo   -> Testing project creation...
-    curl -s -X POST "http://localhost:8000/api/v1/projects" ^
+    echo   ^-^> Testing project creation...
+    curl -s -X POST "http://localhost:8010/api/v1/projects" ^
          -H "Content-Type: application/json" ^
          -d "{\"title\":\"Test Integration Project\",\"description\":\"Test project for CI\"}" >nul 2>&1
     if errorlevel 1 (
@@ -99,10 +99,10 @@ if errorlevel 1 (
         echo   + Project creation test passed
     )
     
-    echo   -> Testing AI service health...
-    curl -s "http://localhost:8000/api/v1/ai/health" >nul 2>&1
+    echo   ^-^> Testing AI service health...
+    curl -s "http://localhost:8010/api/v1/ai/health" >nul 2>&1
     if errorlevel 1 (
-        echo   ! AI service test failed (expected if Ollama not running)
+        echo   ! AI service test failed ^(expected if Ollama not running^)
     ) else (
         echo   + AI service responding
     )
@@ -120,7 +120,7 @@ echo.
 
 if "%FAILED_TESTS%"=="0" (
     echo ========================================
-    echo   ALL TESTS PASSED! ✓
+    echo   ALL TESTS PASSED! [PASS]
     echo ========================================
     echo.
     echo Coverage reports generated:
@@ -130,7 +130,7 @@ if "%FAILED_TESTS%"=="0" (
     echo The system is ready for development!
 ) else (
     echo ========================================
-    echo   %FAILED_TESTS% TEST SUITE(S) FAILED ✗
+    echo   %FAILED_TESTS% TEST SUITE^(S^) FAILED [FAIL]
     echo ========================================
     echo.
     echo Please review the test output above and

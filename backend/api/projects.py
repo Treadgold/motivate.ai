@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -12,39 +12,39 @@ router = APIRouter(tags=["projects"])
 # Pydantic schemas
 class ProjectCreate(BaseModel):
     title: str
-    description: str = None
+    description: Optional[str] = None
     priority: str = "medium"
-    estimated_time: int = None
-    tags: str = None
-    location: str = None
-    next_action: str = None
+    estimated_time: Optional[int] = None
+    tags: Optional[str] = None
+    location: Optional[str] = None
+    next_action: Optional[str] = None
 
 class ProjectUpdate(BaseModel):
-    title: str = None
-    description: str = None
-    status: str = None
-    priority: str = None
-    estimated_time: int = None
-    actual_time: int = None
-    tags: str = None
-    location: str = None
-    next_action: str = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    estimated_time: Optional[int] = None
+    actual_time: Optional[int] = None
+    tags: Optional[str] = None
+    location: Optional[str] = None
+    next_action: Optional[str] = None
 
 class ProjectResponse(BaseModel):
     id: int
     title: str
-    description: str = None
+    description: Optional[str] = None
     status: str
     priority: str
-    estimated_time: int = None
-    actual_time: int
-    tags: str = None
-    location: str = None
-    next_action: str = None
+    estimated_time: Optional[int] = None
+    actual_time: Optional[int] = None
+    tags: Optional[str] = None
+    location: Optional[str] = None
+    next_action: Optional[str] = None
     is_active: bool
     created_at: datetime
-    updated_at: datetime = None
-    last_worked_on: datetime = None
+    updated_at: Optional[datetime] = None
+    last_worked_on: Optional[datetime] = None
 
     class Config:
         from_attributes = True

@@ -54,7 +54,7 @@ echo ========================================
 echo   All systems running!
 echo ========================================
 echo.
-echo  Backend API: http://localhost:8000/docs
+echo  Backend API: http://localhost:8010/docs
 echo  Desktop app: Running in system tray
 echo  AI: qwen3max via Ollama
 echo.
@@ -62,4 +62,4 @@ echo Check minimized windows if any errors occur.
 echo Press any key to open the API docs...
 pause >nul
 
-start http://localhost:8000/docs 
+start http://localhost:8010/docs 

@@ -11,7 +11,7 @@ if not exist "backend\venv\Scripts\activate.bat" (
 
 cd backend
 call venv\Scripts\activate.bat
-echo Backend API starting at http://localhost:8000
+echo Backend API starting at http://localhost:8010
 echo Press Ctrl+C to stop
 echo.
 python main.py 

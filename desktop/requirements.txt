@@ -1,3 +1,4 @@
+# Existing core dependencies
 pystray==0.19.5
 pillow==10.1.0
 psutil==5.9.6
@@ -5,6 +6,15 @@ pywin32==306
 plyer==2.1.0
 requests==2.31.0
 python-dotenv==1.0.0
+
+# Modern UI Framework
+customtkinter==5.2.1
+
+
+# Additional UI/UX Features
+pygame==2.5.2  # For notification sounds
+keyboard==0.13.5  # Global hotkeys
+
 # Testing dependencies
 pytest==7.4.3
 pytest-cov==4.1.0 

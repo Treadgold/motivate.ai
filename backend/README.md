@@ -14,11 +14,11 @@ pip install -r requirements.txt
 ## 🏃 Running
 
 ```bash
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+uvicorn main:app --reload --host 0.0.0.0 --port 8010
 ```
 
-API will be available at: http://localhost:8000
-API docs at: http://localhost:8000/docs
+API will be available at: http://localhost:8010
+API docs at: http://localhost:8010/docs
 
 ## 📁 Structure
 

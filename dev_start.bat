@@ -72,7 +72,7 @@ if errorlevel 1 (
 )
 
 echo   -> Starting backend server...
-start "Motivate.AI Backend" cmd /k "echo Starting Backend API on http://localhost:8000 && python main.py"
+start "Motivate.AI Backend" cmd /k "echo Starting Backend API on http://localhost:8010 && python main.py"
 call deactivate
 cd ..
 
@@ -83,7 +83,7 @@ timeout /t 5 /nobreak >nul
 REM Health check with retry
 set "BACKEND_READY=0"
 for /L %%i in (1,1,5) do (
-    curl -s http://localhost:8000/health >nul 2>&1
+    curl -s http://localhost:8010/health >nul 2>&1
     if not errorlevel 1 (
         set "BACKEND_READY=1"
         goto backend_ready
@@ -94,7 +94,7 @@ for /L %%i in (1,1,5) do (
 
 :backend_ready
 if "%BACKEND_READY%"=="1" (
-    echo   + Backend API ready at http://localhost:8000
+    echo   + Backend API ready at http://localhost:8010
 ) else (
     echo   ! Backend failed to start properly
     echo   -> Check the Backend window for errors
@@ -130,17 +130,17 @@ echo ========================================
 echo.
 echo Services Status:
 if "%BACKEND_READY%"=="1" (
-    echo  ✅ Backend API: http://localhost:8000
-    echo  📖 API Docs: http://localhost:8000/docs
+    echo  [OK] Backend API: http://localhost:8010
+    echo  [OK] API Docs: http://localhost:8010/docs
 ) else (
-    echo  ❌ Backend API: Failed to start
+    echo  [ERR] Backend API: Failed to start
 )
-echo  🖥️  Desktop App: Running in system tray
-echo  🤖 AI Service: Ollama running
+echo  [OK] Desktop App: Running in system tray
+echo  [OK] AI Service: Ollama running
 
 echo.
 echo Development Commands:
-echo  - View API Documentation: http://localhost:8000/docs
+echo  - View API Documentation: http://localhost:8010/docs
 echo  - Run Tests: run_tests.bat
 echo  - View Logs: Check the terminal windows
 echo  - Stop All: Press Ctrl+C in each window
@@ -149,7 +149,7 @@ echo.
 REM Open API docs automatically
 choice /C YN /N /M "Open API docs in browser? (Y/N): "
 if not errorlevel 2 (
-    start http://localhost:8000/docs
+    start http://localhost:8010/docs
 )
 
 echo.
