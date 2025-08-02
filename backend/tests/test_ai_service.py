@@ -21,7 +21,7 @@ class TestAIService:
         """Test AI service initializes with correct defaults"""
         assert self.ai_service.base_url == "http://localhost:11434"
         assert self.ai_service.model == "qwen3max:latest"
-        assert self.ai_service.timeout == 30
+        assert self.ai_service.timeout == 600
         
     @pytest.mark.asyncio
     async def test_generate_suggestions_success(self):

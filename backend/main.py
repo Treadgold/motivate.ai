@@ -31,13 +31,14 @@ app.add_middleware(
 )
 
 # Import routers
-from api import projects, tasks, suggestions, activity
+from api import projects, tasks, suggestions, activity, ai_agent_api
 
 # Include API routes
 app.include_router(projects.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(suggestions.router, prefix="/api/v1")
 app.include_router(activity.router, prefix="/api/v1")
+app.include_router(ai_agent_api.router, prefix="/api/v1")
 
 @app.get("/")
 async def root():

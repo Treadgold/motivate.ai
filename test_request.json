@@ -1,0 +1,8 @@
+{
+  "operation": "split_task",
+  "task_ids": [1],
+  "context": {
+    "user_preference": "prefer smaller, manageable tasks",
+    "work_style": "focused work sessions"
+  }
+} 

@@ -23,7 +23,7 @@ class NewProjectDialog:
         # Dialog window
         self.dialog = ctk.CTkToplevel(parent)
         self.dialog.title("New Project")
-        self.dialog.geometry("500x600")
+        self.dialog.geometry("700x600")
         self.dialog.resizable(False, False)
         
         # Center the dialog
@@ -41,6 +41,7 @@ class NewProjectDialog:
         self.tags_var = ctk.StringVar()
         self.location_var = ctk.StringVar()
         self.next_action_var = ctk.StringVar()
+        self.tasks_var = ctk.StringVar()  # New field for comma-separated tasks
         
         # Create the UI
         self.create_ui()
@@ -51,8 +52,8 @@ class NewProjectDialog:
     def center_dialog(self):
         """Center the dialog on the parent window or screen"""
         self.dialog.update_idletasks()
-        width = self.dialog.winfo_reqwidth()
-        height = self.dialog.winfo_reqheight()
+        width = self.dialog.winfo_width()
+        height = self.dialog.winfo_height()
         
         if self.parent:
             parent_x = self.parent.winfo_x()
@@ -117,7 +118,7 @@ class NewProjectDialog:
         
         self.description_textbox = ctk.CTkTextbox(
             desc_frame,
-            height=80,
+            height=90,
             wrap="word"
         )
         self.description_textbox.pack(fill="x", pady=(5, 0))
@@ -207,6 +208,22 @@ class NewProjectDialog:
             height=35
         )
         self.action_entry.pack(fill="x", pady=(5, 0))
+
+        # Tasks
+        tasks_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        tasks_frame.pack(fill="x", pady=(0, 15))
+
+        tasks_label = ctk.CTkLabel(tasks_frame, text="Tasks (comma-separated)", 
+                                   font=ctk.CTkFont(weight="bold"))
+        tasks_label.pack(anchor="w")
+
+        self.tasks_entry = ctk.CTkEntry(
+            tasks_frame,
+            textvariable=self.tasks_var,
+            placeholder_text="e.g., task1, task2, task3",
+            height=35
+        )
+        self.tasks_entry.pack(fill="x", pady=(5, 0))
     
     def create_buttons(self, parent):
         """Create the action buttons"""
@@ -287,6 +304,11 @@ class NewProjectDialog:
         if self.next_action_var.get().strip():
             data["next_action"] = self.next_action_var.get().strip()
         
+        if self.tasks_var.get().strip():
+            tasks_list = [t.strip() for t in self.tasks_var.get().split(',') if t.strip()]
+            if tasks_list:
+                data["tasks"] = tasks_list
+        
         return data
     
     def create_project(self):
@@ -298,7 +320,10 @@ class NewProjectDialog:
             # Get form data
             project_data = self.get_form_data()
             
-            # Make API call
+            # Extract tasks before sending project data (remove from project_data)
+            tasks_list = project_data.pop("tasks", [])
+            
+            # Make API call to create project
             response = requests.post(
                 f"{self.api_base_url}/projects",
                 json=project_data,
@@ -307,6 +332,12 @@ class NewProjectDialog:
             
             if response.status_code == 200:
                 created_project = response.json()
+                project_id = created_project["id"]
+                
+                # Create tasks if any were provided
+                if tasks_list:
+                    self.create_tasks_for_project(project_id, tasks_list, project_data.get("priority", "medium"))
+                
                 messagebox.showinfo("Success", f"Project '{created_project['title']}' created successfully!")
                 
                 # Call callback if provided
@@ -328,6 +359,43 @@ class NewProjectDialog:
             messagebox.showerror("Timeout Error", "Request timed out. Please try again.")
         except Exception as e:
             messagebox.showerror("Error", f"An unexpected error occurred: {str(e)}")
+    
+    def create_tasks_for_project(self, project_id: int, tasks_list: list, project_priority: str):
+        """Create tasks for the project using the bulk task creation API"""
+        try:
+            # Prepare task data for bulk creation
+            bulk_tasks_data = {
+                "tasks": [
+                    {
+                        "project_id": project_id,
+                        "title": task_title.strip(),
+                        "description": "",
+                        "status": "pending",
+                        "priority": project_priority,
+                        "estimated_minutes": 15,
+                        "energy_level": "medium",
+                        "context": "",
+                        "is_suggestion": False
+                    }
+                    for task_title in tasks_list
+                ]
+            }
+            
+            # Make API call to create tasks in bulk
+            response = requests.post(
+                f"{self.api_base_url}/tasks/bulk",
+                json=bulk_tasks_data,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                created_tasks = response.json()
+                print(f"Created {len(created_tasks)} tasks for project {project_id}")
+            else:
+                print(f"Failed to create tasks: {response.text}")
+                
+        except Exception as e:
+            print(f"Error creating tasks: {str(e)}")
     
     def cancel(self):
         """Cancel and close the dialog"""

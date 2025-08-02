@@ -8,6 +8,13 @@ passlib[bcrypt]==1.7.4
 httpx==0.28.1  # For Ollama API calls
 requests==2.31.0
 python-dotenv==1.0.0
+
+# AI Agent dependencies - simplified approach
+# langgraph>=0.0.40
+# langchain>=0.1.0
+# langchain-core>=0.2.0
+# langchain-community>=0.0.20
+
 # Testing dependencies
 pytest==7.4.3
 pytest-asyncio==0.21.1

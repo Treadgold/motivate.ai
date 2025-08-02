@@ -27,21 +27,48 @@ class MainWindow:
         self.selected_project_id = None
         self.pending_updates = []  # Store updates when window isn't ready
         
+        # Load settings first
+        self.load_and_apply_settings()
+        
         # Create main window
         self.root = ctk.CTk()
         self.root.title("Motivate.AI")
-        self.root.geometry("1200x800")
+        self.root.geometry("1450x900")
         self.root.minsize(800, 600)
         
         # Configure grid weights for responsive design
-        self.root.grid_columnconfigure(0, weight=1)
-        self.root.grid_rowconfigure(1, weight=1)
+        self.root.grid_columnconfigure(0, weight=2)
+        self.root.grid_rowconfigure(1, weight=2)
         
         # Setup UI immediately (non-blocking)
         self.setup_ui()
         
         # Load projects immediately (no async needed since window shows instantly)
         self.load_projects_data()
+    
+    def load_and_apply_settings(self):
+        """Load and apply settings from file"""
+        try:
+            from .settings_dialog import SettingsDialog
+            settings_dialog = SettingsDialog(None)  # No parent needed for loading
+            
+            # Apply appearance settings
+            theme = settings_dialog.settings["appearance"]["theme"]
+            if theme != "system":
+                ctk.set_appearance_mode(theme)
+            
+            color_theme = settings_dialog.settings["appearance"]["color_theme"]
+            ctk.set_default_color_theme(color_theme)
+            
+            # Update API base URL if different from default
+            saved_api_url = settings_dialog.settings["api"]["base_url"]
+            if saved_api_url != "http://127.0.0.1:8010/api/v1":
+                self.api_base_url = saved_api_url
+                os.environ["API_BASE_URL"] = saved_api_url
+            
+        except Exception as e:
+            print(f"Error loading settings: {e}")
+            # Continue with defaults
     
     def setup_ui(self):
         """Set up the main user interface (non-blocking)"""
@@ -68,7 +95,7 @@ class MainWindow:
         # Load real projects from API in background
         def load_projects_async():
             try:
-                response = requests.get(f"{self.api_base_url}/projects", timeout=2)
+                response = requests.get(f"{self.api_base_url}/projects", timeout=10)
                 if response.status_code == 200:
                     real_projects = response.json()
                     # Update UI on main thread safely
@@ -188,10 +215,21 @@ class MainWindow:
                                command=self.quick_add_task, font=ctk.CTkFont(size=18))
         add_btn.grid(row=0, column=2, padx=2)
         
+        # AI Status indicator
+        self.ai_status_btn = ctk.CTkButton(actions_frame, text="🤖", width=40, height=40,
+                                          command=self.check_ai_status,
+                                          font=ctk.CTkFont(size=18),
+                                          fg_color=("gray", "gray40"),
+                                          hover_color=("darkgray", "gray60"))
+        self.ai_status_btn.grid(row=0, column=3, padx=2)
+        
         # Settings button
         settings_btn = ctk.CTkButton(actions_frame, text="⚙️", width=40, height=40,
                                     command=self.open_settings, font=ctk.CTkFont(size=18))
-        settings_btn.grid(row=0, column=3, padx=2)
+        settings_btn.grid(row=0, column=4, padx=2)
+        
+        # Check AI status after main loop starts
+        self.root.after(1000, self.check_ai_status_background)
     
     def create_main_content(self):
         """Create the main content area with resizable sidebar, task view, and task detail pane"""
@@ -204,8 +242,8 @@ class MainWindow:
         
         # Use tkinter PanedWindow for resizable splitter
         self.paned_window = tk.PanedWindow(main_container, orient=tk.HORIZONTAL, 
-                                          sashwidth=5, sashrelief="raised",
-                                          bg="#212121")
+                                          sashwidth=12, sashrelief="raised",
+                                          bg="#212108")
         self.paned_window.grid(row=0, column=0, sticky="nsew")
         
         # Projects sidebar
@@ -218,9 +256,9 @@ class MainWindow:
         self.create_task_detail_pane()
         
         # Add all three panels to the paned window
-        self.paned_window.add(self.sidebar_frame, minsize=250, width=640)
-        self.paned_window.add(self.task_frame, minsize=400, width=500)
-        self.paned_window.add(self.task_detail_frame, minsize=300, width=400)
+        self.paned_window.add(self.sidebar_frame, minsize=380, width=620)
+        self.paned_window.add(self.task_frame, minsize=500)
+        self.paned_window.add(self.task_detail_frame, minsize=450, width=450)
         
         self.sidebar_visible = True
         self.task_detail_visible = True
@@ -252,6 +290,7 @@ class MainWindow:
         """Create the main task view area"""
         self.task_frame = ctk.CTkFrame(self.paned_window)
         self.task_frame.grid_rowconfigure(1, weight=1)
+        self.task_frame.grid_columnconfigure(0, weight=1)  # Allow task frame to expand horizontally
         
         # Task view header with filters
         self.create_task_header()
@@ -259,6 +298,7 @@ class MainWindow:
         # Main task list area
         self.task_list_frame = ctk.CTkScrollableFrame(self.task_frame)
         self.task_list_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
+        self.task_list_frame.grid_columnconfigure(0, weight=1)  # Allow task list items to expand
         
         # Load initial task view (empty state)
         self.load_tasks_list()
@@ -582,7 +622,7 @@ class MainWindow:
         # Load real tasks from backend in background thread
         def load_tasks_async():
             try:
-                response = requests.get(f"{self.api_base_url}/tasks?project_id={project_id}", timeout=2)
+                response = requests.get(f"{self.api_base_url}/tasks?project_id={project_id}", timeout=10)
                 if response.status_code == 200:
                     real_tasks = response.json()
                     # Update UI on main thread safely with real data
@@ -645,10 +685,17 @@ class MainWindow:
             empty_label.grid(pady=50)
     
     def create_task_item(self, task):
-        """Create a clickable task item in the task list"""
-        task_frame = ctk.CTkFrame(self.task_list_frame, height=70)
+        """Create a clickable task item in the task list with AI split button"""
+        # Calculate dynamic height based on content
+        base_height = 80
+        description = task.get("description", "")
+        if description and len(description) > 50:
+            base_height = 100  # Increase height for tasks with descriptions
+            
+        task_frame = ctk.CTkFrame(self.task_list_frame, height=base_height)
         task_frame.grid(sticky="ew", padx=5, pady=2)
-        task_frame.grid_columnconfigure(1, weight=1)
+        task_frame.grid_columnconfigure(1, weight=1)  # Content expands
+        task_frame.grid_columnconfigure(2, weight=0)  # Actions stay fixed
         
         # Make the entire task clickable for editing
         task_frame.bind("<Button-1>", lambda e, t=task: self.edit_task(t))
@@ -657,24 +704,41 @@ class MainWindow:
         is_completed = task.get("status") == "completed"
         checkbox = ctk.CTkCheckBox(task_frame, text="", width=20, height=20,
                                   command=lambda t=task: self.toggle_task_completion(t))
-        checkbox.grid(row=0, column=0, padx=15, pady=20)
+        checkbox.grid(row=0, column=0, padx=15, pady=25, sticky="n")
         if is_completed:
             checkbox.select()
         
-        # Task content area
+        # Task content area - now with better expansion
         content_frame = ctk.CTkFrame(task_frame, fg_color="transparent")
-        content_frame.grid(row=0, column=1, sticky="ew", padx=10, pady=10)
+        content_frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
         content_frame.grid_columnconfigure(0, weight=1)
         content_frame.bind("<Button-1>", lambda e, t=task: self.edit_task(t))
         
-        # Task title
+        # Task title with text wrapping and strikethrough for completed tasks
         task_text = task.get("title", "Untitled Task")
-        text_color = "gray" if is_completed else None
+        if is_completed:
+            task_text = f"~~{task_text}~~"  # Add strikethrough effect
+            text_color = "gray60"
+            font_weight = "normal"
+        else:
+            text_color = None
+            font_weight = "bold"
+            
         task_label = ctk.CTkLabel(content_frame, text=task_text, 
-                                 font=ctk.CTkFont(size=14, weight="bold"),
-                                 text_color=text_color)
+                                 font=ctk.CTkFont(size=14, weight=font_weight),
+                                 text_color=text_color,
+                                 wraplength=400)  # Wrap long titles
         task_label.grid(row=0, column=0, sticky="w")
         task_label.bind("<Button-1>", lambda e, t=task: self.edit_task(t))
+        
+        # Task description with wrapping (if present)
+        if description:
+            desc_label = ctk.CTkLabel(content_frame, text=description[:100] + ("..." if len(description) > 100 else ""), 
+                                    font=ctk.CTkFont(size=11),
+                                    text_color="gray60",
+                                    wraplength=400)
+            desc_label.grid(row=1, column=0, sticky="w", pady=(2, 0))
+            desc_label.bind("<Button-1>", lambda e, t=task: self.edit_task(t))
         
         # Task details (priority, time, etc.)
         details_text = []
@@ -684,11 +748,59 @@ class MainWindow:
             details_text.append(f"{task.get('estimated_time')} min")
         
         if details_text:
+            details_row = 2 if description else 1
             details_label = ctk.CTkLabel(content_frame, text=" • ".join(details_text), 
                                        font=ctk.CTkFont(size=11),
                                        text_color="gray")
-            details_label.grid(row=1, column=0, sticky="w", pady=(2, 0))
+            details_label.grid(row=details_row, column=0, sticky="w", pady=(2, 0))
             details_label.bind("<Button-1>", lambda e, t=task: self.edit_task(t))
+        
+        # Action buttons frame (only show for non-completed tasks)
+        if not is_completed:
+            actions_frame = ctk.CTkFrame(task_frame, fg_color="transparent")
+            actions_frame.grid(row=0, column=2, padx=10, pady=15, sticky="ne")  # Anchor to top-right
+            
+            # AI Auto Split Task button - show for most tasks to make it discoverable
+            estimated_time = task.get("estimated_time", 0)
+            if estimated_time > 15 or len(task.get("title", "")) > 25:  # Lower threshold for better visibility
+                ai_split_btn = ctk.CTkButton(actions_frame, text="🤖 Split Task", 
+                                           width=110, height=30,
+                                           command=lambda t=task: self.show_ai_split_dialog(t),
+                                           fg_color=("#1f538d", "#14375e"),  # More vibrant blue
+                                           hover_color=("#2563eb", "#1d4ed8"),
+                                           font=ctk.CTkFont(size=12, weight="bold"))
+                ai_split_btn.grid(row=0, column=0, padx=2)
+                
+                # Add tooltip for better UX
+                self.add_ai_tooltip(ai_split_btn, task)
+            else:
+                # Show a subtle AI icon for smaller tasks
+                ai_hint_btn = ctk.CTkButton(actions_frame, text="🤖", 
+                                          width=35, height=30,
+                                          command=lambda t=task: self.show_ai_split_dialog(t),
+                                          fg_color=("#1f538d", "#14375e"),
+                                          hover_color=("#2563eb", "#1d4ed8"),
+                                          font=ctk.CTkFont(size=14))
+                ai_hint_btn.grid(row=0, column=0, padx=2)
+                
+                # Add tooltip for clarity
+                self.add_ai_tooltip(ai_hint_btn, task)
+            
+            # Edit button
+            edit_btn = ctk.CTkButton(actions_frame, text="✏️", width=35, height=30,
+                                   command=lambda t=task: self.edit_task(t),
+                                   fg_color=("gray", "gray40"),
+                                   hover_color=("darkgray", "gray60"),
+                                   font=ctk.CTkFont(size=12))
+            edit_btn.grid(row=0, column=1, padx=2)
+            
+            # Delete button
+            delete_btn = ctk.CTkButton(actions_frame, text="🗑️", width=35, height=30,
+                                     command=lambda t=task: self.delete_task(t),
+                                     fg_color=("red", "darkred"),
+                                     hover_color=("darkred", "red"),
+                                     font=ctk.CTkFont(size=12))
+            delete_btn.grid(row=0, column=2, padx=2)
         
         # Add hover effect
         def on_enter(e):
@@ -708,7 +820,7 @@ class MainWindow:
             # Update task status via API
             task_id = task.get("id")
             task_data = {"status": new_status}
-            response = requests.patch(f"{self.api_base_url}/tasks/{task_id}", 
+            response = requests.put(f"{self.api_base_url}/tasks/{task_id}", 
                                     json=task_data, timeout=5)
             
             if response.status_code == 200:
@@ -733,6 +845,95 @@ class MainWindow:
         # Clear status after 3 seconds
         self.root.after(3000, lambda: self.status_label.configure(text="Ready"))
     
+    def delete_task(self, task):
+        """Delete a task with confirmation dialog"""
+        import tkinter.messagebox as msgbox
+        
+        task_title = task.get("title", "Untitled Task")
+        
+        # Show confirmation dialog
+        result = msgbox.askyesno(
+            "Delete Task",
+            f"Are you sure you want to delete the task:\n\n'{task_title}'\n\nThis action cannot be undone.",
+            icon='warning'
+        )
+        
+        if result:
+            try:
+                task_id = task.get("id")
+                response = requests.delete(f"{self.api_base_url}/tasks/{task_id}", timeout=5)
+                
+                if response.status_code == 200:
+                    self.status_label.configure(text=f"Task '{task_title}' deleted successfully")
+                    
+                    # If this task is currently being edited, clear the edit pane
+                    if self.editing_task and self.selected_task and self.selected_task.get("id") == task_id:
+                        self.clear_task_form()
+                        self.editing_task = False
+                        self.selected_task = None
+                    
+                    # Refresh the task list
+                    self.load_tasks_list(self.selected_project_id)
+                else:
+                    self.status_label.configure(text="Error deleting task")
+                    
+            except requests.exceptions.RequestException:
+                self.status_label.configure(text="Error: Could not connect to server")
+            
+            # Clear status after 3 seconds
+            self.root.after(3000, lambda: self.status_label.configure(text="Ready"))
+    
+    def delete_project(self, project):
+        """Delete a project with confirmation dialog"""
+        import tkinter.messagebox as msgbox
+        
+        project_title = project.get("title", "Untitled Project")
+        task_count = project.get("task_count", 0)
+        
+        # Show confirmation dialog with task count warning
+        warning_text = f"Are you sure you want to delete the project:\n\n'{project_title}'"
+        if task_count > 0:
+            warning_text += f"\n\nThis project contains {task_count} task(s) that will also be deleted."
+        warning_text += "\n\nThis action cannot be undone."
+        
+        result = msgbox.askyesno(
+            "Delete Project",
+            warning_text,
+            icon='warning'
+        )
+        
+        if result:
+            try:
+                project_id = project.get("id")
+                response = requests.delete(f"{self.api_base_url}/projects/{project_id}", timeout=5)
+                
+                if response.status_code == 200:
+                    self.status_label.configure(text=f"Project '{project_title}' deleted successfully")
+                    
+                    # If this was the selected project, clear the task view
+                    if self.selected_project_id == project_id:
+                        self.selected_project = None
+                        self.selected_project_id = None
+                        self.task_title.configure(text="Tasks")
+                        self.load_tasks_list()  # Load empty state
+                        
+                        # Clear task edit form if open
+                        if self.editing_task:
+                            self.clear_task_form()
+                            self.editing_task = False
+                            self.selected_task = None
+                    
+                    # Refresh the projects list
+                    self.load_projects_list()
+                else:
+                    self.status_label.configure(text="Error deleting project")
+                    
+            except requests.exceptions.RequestException:
+                self.status_label.configure(text="Error: Could not connect to server")
+            
+            # Clear status after 3 seconds
+            self.root.after(3000, lambda: self.status_label.configure(text="Ready"))
+    
     def create_status_bar(self):
         """Create the status bar at the bottom"""
         status_frame = ctk.CTkFrame(self.root, height=30)
@@ -752,6 +953,7 @@ class MainWindow:
         card_frame = ctk.CTkFrame(self.projects_frame, height=60)
         card_frame.grid(row=len(self.projects_frame.winfo_children()), column=0, sticky="ew", padx=5, pady=2)
         card_frame.grid_columnconfigure(1, weight=1)
+        card_frame.grid_columnconfigure(2, weight=0)  # Actions column
         
         # Make the entire card clickable
         card_frame.bind("<Button-1>", lambda e, p=project: self.select_project(p))
@@ -777,6 +979,14 @@ class MainWindow:
                                   font=ctk.CTkFont(size=12), text_color="gray")
         count_label.grid(row=1, column=0, sticky="w")
         count_label.bind("<Button-1>", lambda e, p=project: self.select_project(p))
+        
+        # Project delete button
+        delete_btn = ctk.CTkButton(card_frame, text="🗑️", width=30, height=30,
+                                 command=lambda p=project: self.delete_project(p),
+                                 fg_color=("red", "darkred"),
+                                 hover_color=("darkred", "red"),
+                                 font=ctk.CTkFont(size=12))
+        delete_btn.grid(row=0, column=2, padx=5, pady=15)
         
         # Store reference for highlighting
         card_frame.project_id = project["id"]
@@ -840,8 +1050,27 @@ class MainWindow:
     
     def open_settings(self):
         """Open settings window"""
-        self.status_label.configure(text="Settings - Coming soon!")
-        self.root.after(3000, lambda: self.status_label.configure(text="Ready"))
+        try:
+            from .settings_dialog import show_settings_dialog
+            
+            def on_settings_saved(settings):
+                """Handle when settings are saved"""
+                # Update API base URL if changed
+                if settings["api"]["base_url"] != self.api_base_url:
+                    self.api_base_url = settings["api"]["base_url"]
+                    # Reload projects with new API URL
+                    self.load_projects_data()
+                
+                # Update status
+                self.status_label.configure(text="Settings updated successfully!")
+                self.root.after(3000, lambda: self.status_label.configure(text="Ready"))
+            
+            show_settings_dialog(self.root, on_settings_saved)
+            
+        except Exception as e:
+            print(f"Error opening settings dialog: {e}")
+            self.status_label.configure(text="Error opening settings")
+            self.root.after(3000, lambda: self.status_label.configure(text="Ready"))
     
     def add_project(self):
         """Add new project"""
@@ -873,6 +1102,202 @@ class MainWindow:
         """Load initial data (now just a placeholder)"""
         self.status_label.configure(text="Loading data...")
         self.root.after(1000, lambda: self.status_label.configure(text="Ready"))
+    
+    def show_ai_split_dialog(self, task):
+        """Show the AI split task dialog"""
+        try:
+            # Immediate feedback in status bar
+            self.status_label.configure(text="🤖 Starting AI analysis - this may take 10-30 seconds...")
+            
+            from .ai_split_dialog import show_ai_split_dialog
+            
+            def on_approve(preview_data):
+                """Handle when user approves the AI split"""
+                self.execute_ai_split(preview_data)
+            
+            def on_cancel():
+                """Handle when user cancels the AI split"""
+                self.status_label.configure(text="AI task splitting cancelled")
+                self.root.after(3000, lambda: self.status_label.configure(text="Ready"))
+            
+            # Show the AI dialog
+            show_ai_split_dialog(self.root, task, on_approve, on_cancel)
+            
+        except Exception as e:
+            print(f"Error showing AI split dialog: {e}")
+            self.status_label.configure(text="Error: Could not open AI assistant")
+            self.root.after(3000, lambda: self.status_label.configure(text="Ready"))
+    
+    def execute_ai_split(self, preview_data):
+        """Execute the AI split after user approval"""
+        try:
+            preview_id = preview_data.get("preview_id")
+            if not preview_id:
+                self.status_label.configure(text="Error: Invalid preview data")
+                return
+            
+            # Show executing status
+            self.status_label.configure(text="🤖 Executing AI task split...")
+            
+            # Execute in background thread to avoid blocking UI
+            def execute_split():
+                try:
+                    response = requests.post(f"{self.api_base_url}/ai-agent/execute/{preview_id}", 
+                                           timeout=600)
+                    
+                    if response.status_code == 200:
+                        result = response.json()
+                        if result.get("success"):
+                            # Success! Update UI on main thread safely
+                            self.safe_ui_update(lambda: self.on_split_success(result))
+                        else:
+                            error_msg = result.get("error_message", "Unknown error")
+                            self.safe_ui_update(lambda: self.on_split_error(f"Split failed: {error_msg}"))
+                    else:
+                        self.safe_ui_update(lambda: self.on_split_error(f"API Error: {response.status_code}"))
+                        
+                except requests.exceptions.Timeout:
+                    self.safe_ui_update(lambda: self.on_split_error("Split timed out"))
+                except requests.exceptions.ConnectionError:
+                    self.safe_ui_update(lambda: self.on_split_error("Cannot connect to AI service"))
+                except Exception as e:
+                    self.safe_ui_update(lambda: self.on_split_error(f"Unexpected error: {str(e)}"))
+            
+            # Start execution in background
+            thread = threading.Thread(target=execute_split, daemon=True)
+            thread.start()
+            
+        except Exception as e:
+            print(f"Error executing AI split: {e}")
+            self.status_label.configure(text="Error executing split")
+            self.root.after(3000, lambda: self.status_label.configure(text="Ready"))
+    
+    def on_split_success(self, result):
+        """Handle successful AI split execution"""
+        # Refresh the task list to show new subtasks
+        if self.selected_project_id:
+            self.load_tasks_list(self.selected_project_id)
+        
+        # Show success message
+        executed_changes = result.get("executed_changes", [])
+        created_count = sum(1 for change in executed_changes if change.get("action") == "created_tasks")
+        
+        self.status_label.configure(text=f"✨ AI split complete! Created {created_count} subtasks")
+        self.root.after(5000, lambda: self.status_label.configure(text="Ready"))
+        
+        # Show success notification
+        self.show_success_notification("Task split successfully!", 
+                                     f"Your task has been intelligently divided into {created_count} manageable subtasks")
+    
+    def on_split_error(self, error_message):
+        """Handle AI split execution error"""
+        self.status_label.configure(text=f"❌ Split failed: {error_message}")
+        self.root.after(5000, lambda: self.status_label.configure(text="Ready"))
+        
+        # Could add error notification here
+        print(f"AI split error: {error_message}")
+    
+    def show_success_notification(self, title, message):
+        """Show a success notification popup"""
+        try:
+            # Create a simple success popup
+            popup = ctk.CTkToplevel(self.root)
+            popup.title("Success!")
+            popup.geometry("400x300")
+            popup.resizable(False, False)
+            
+            # Center on parent
+            popup.transient(self.root)
+            popup.grab_set()
+            
+            x = self.root.winfo_rootx() + (self.root.winfo_width() - 400) // 2
+            y = self.root.winfo_rooty() + (self.root.winfo_height() - 300) // 2
+            popup.geometry(f"400x300+{x}+{y}")
+            
+            # Content
+            success_icon = ctk.CTkLabel(popup, text="✨", font=ctk.CTkFont(size=48))
+            success_icon.grid(row=0, column=0, pady=20)
+            
+            title_label = ctk.CTkLabel(popup, text=title, font=ctk.CTkFont(size=16, weight="bold"))
+            title_label.grid(row=1, column=0, pady=(0, 10))
+            
+            message_label = ctk.CTkLabel(popup, text=message, font=ctk.CTkFont(size=12),
+                                       wraplength=350, justify="center")
+            message_label.grid(row=2, column=0, pady=(0, 20))
+            
+            ok_btn = ctk.CTkButton(popup, text="Awesome! 🎉", command=popup.destroy,
+                                 fg_color=("green", "darkgreen"))
+            ok_btn.grid(row=3, column=0, pady=10)
+            
+            # Auto-close after 4 seconds
+            popup.after(4000, popup.destroy)
+            
+        except Exception as e:
+            print(f"Error showing notification: {e}")
+    
+    def add_ai_tooltip(self, button, task_data):
+        """Add informative tooltip to AI button"""
+        try:
+            from .ai_button_tooltip import add_ai_button_tooltip
+            add_ai_button_tooltip(button, task_data)
+        except Exception as e:
+            print(f"Error adding AI tooltip: {e}")
+    
+    def check_ai_status_background(self):
+        """Check AI status in background and update indicator"""
+        def check_status():
+            try:
+                response = requests.get(f"{self.api_base_url}/ai-agent/status", timeout=300)
+                if response.status_code == 200:
+                    status_data = response.json()
+                    status = status_data.get("status", "unknown")
+                    self.safe_ui_update(lambda: self.update_ai_status_indicator(status, status_data))
+                else:
+                    self.safe_ui_update(lambda: self.update_ai_status_indicator("offline", {}))
+            except Exception:
+                self.safe_ui_update(lambda: self.update_ai_status_indicator("offline", {}))
+        
+        # Check status in background
+        thread = threading.Thread(target=check_status, daemon=True)
+        thread.start()
+    
+    def update_ai_status_indicator(self, status, status_data):
+        """Update the AI status indicator button"""
+        if hasattr(self, 'ai_status_btn') and self.ai_status_btn.winfo_exists():
+            try:
+                if status == "online":
+                    self.ai_status_btn.configure(
+                        fg_color=("green", "darkgreen"),
+                        hover_color=("darkgreen", "green"),
+                        text="🤖✓"
+                    )
+                    tools_count = status_data.get("tools_available", 0)
+                    self.ai_status_tooltip = f"AI Assistant Online\n{tools_count} tools available"
+                elif status == "degraded":
+                    self.ai_status_btn.configure(
+                        fg_color=("orange", "darkorange"),
+                        hover_color=("darkorange", "orange"),
+                        text="🤖⚠"
+                    )
+                    self.ai_status_tooltip = "AI Assistant Degraded\nSome features may not work"
+                else:
+                    self.ai_status_btn.configure(
+                        fg_color=("red", "darkred"),
+                        hover_color=("darkred", "red"),
+                        text="🤖✗"
+                    )
+                    self.ai_status_tooltip = "AI Assistant Offline\nCheck backend connection"
+            except Exception as e:
+                print(f"Error updating AI status indicator: {e}")
+    
+    def check_ai_status(self):
+        """Show AI status when button is clicked"""
+        if hasattr(self, 'ai_status_tooltip'):
+            self.status_label.configure(text=self.ai_status_tooltip.replace('\n', ' - '))
+            self.root.after(5000, lambda: self.status_label.configure(text="Ready"))
+        else:
+            self.status_label.configure(text="Checking AI status...")
+            self.check_ai_status_background()
     
     def run(self):
         """Start the main window"""
