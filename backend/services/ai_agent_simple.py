@@ -26,6 +26,7 @@ load_dotenv()  # Also load any local .env file
 class OperationType(Enum):
     """Supported AI agent operations"""
     SPLIT_TASK = "split_task"
+    IMPROVE_DESCRIPTION = "improve_description"
     MERGE_TASKS = "merge_tasks"
     DEFINE_PROJECT = "define_new_project"
     OPTIMIZE_WORKFLOW = "optimize_workflow"
@@ -311,15 +312,70 @@ class AIAgent:
             """Update a specific task"""
             try:
                 updates_json = json.loads(updates)
-                response = httpx.put(
-                    f"{self.api_base_url}/tasks/{task_id}",
-                    json=updates_json,
-                    timeout=self.timeout
-                )
-                if response.status_code == 200:
-                    return json.dumps(response.json(), indent=2)
-                else:
-                    return f"Error updating task {task_id}: {response.status_code}"
+                
+                # Try direct database access first (when running in API server)
+                try:
+                    from database import get_db
+                    from models.task import Task
+                    from datetime import datetime
+                    
+                    db = next(get_db())
+                    task = db.query(Task).filter(Task.id == task_id).first()
+                    if not task:
+                        return f"Error: Task {task_id} not found"
+                    
+                    # Apply updates
+                    for field, value in updates_json.items():
+                        if hasattr(task, field):
+                            setattr(task, field, value)
+                    
+                    # Handle completion logic
+                    if "is_completed" in updates_json:
+                        if updates_json["is_completed"] and not task.is_completed:
+                            task.completed_at = datetime.utcnow()
+                            task.status = "completed"
+                        elif not updates_json["is_completed"] and task.is_completed:
+                            task.completed_at = None
+                            if task.status == "completed":
+                                task.status = "pending"
+                    
+                    db.commit()
+                    db.refresh(task)
+                    
+                    # Return updated task data
+                    task_dict = {
+                        "id": task.id,
+                        "project_id": task.project_id,
+                        "title": task.title,
+                        "description": task.description,
+                        "status": task.status,
+                        "priority": task.priority,
+                        "estimated_minutes": task.estimated_minutes,
+                        "actual_minutes": task.actual_minutes,
+                        "is_suggestion": task.is_suggestion,
+                        "energy_level": task.energy_level,
+                        "context": task.context,
+                        "is_completed": task.is_completed,
+                        "created_at": task.created_at.isoformat() if task.created_at else None,
+                        "updated_at": task.updated_at.isoformat() if task.updated_at else None,
+                        "completed_at": task.completed_at.isoformat() if task.completed_at else None
+                    }
+                    return json.dumps(task_dict, indent=2)
+                    
+                except Exception as db_error:
+                    print(f"Database update failed, trying HTTP fallback: {db_error}")
+                    # Fallback to HTTP request
+                    with httpx.Client(timeout=self.timeout) as client:
+                        response = client.put(
+                            f"{self.api_base_url}/tasks/{task_id}",
+                            json=updates_json
+                        )
+                    
+                    if response.status_code == 200:
+                        return json.dumps(response.json(), indent=2)
+                    else:
+                        return f"Error updating task {task_id}: {response.status_code} - {response.text}"
+                        
             except Exception as e:
                 return f"Error updating task {task_id}: {str(e)}"
         
@@ -393,10 +449,41 @@ class AIAgent:
                 except json.JSONDecodeError as e:
                     state.error = f"Failed to parse data for task {task_id}: {str(e)}. Raw data: {task_data[:200]}"
                     return
-                except Exception as e:
-                    state.error = f"Error processing task {task_id}: {str(e)}"
-                    return
+                    
+            state.gathered_data = gathered
+            state.reasoning_chain.append(f"Gathered data for {len(task_ids)} tasks and their project contexts")
             
+        elif operation == OperationType.IMPROVE_DESCRIPTION.value:
+            task_ids = state.request.get("task_ids", [])
+            gathered = {}
+            
+            for task_id in task_ids:
+                # Get task details
+                task_tool = next(t for t in self.tools if t["name"] == "get_task_details")
+                task_data = task_tool["func"](task_id)
+                
+                try:
+                    task_json = json.loads(task_data)
+                    gathered[f"task_{task_id}"] = task_json
+                    
+                    # Get project context for better understanding
+                    project_id = task_json.get("project_id")
+                    if project_id:
+                        project_tool = next(t for t in self.tools if t["name"] == "get_project_details")
+                        project_data = project_tool["func"](project_id)
+                        
+                        tasks_tool = next(t for t in self.tools if t["name"] == "get_project_tasks")
+                        project_tasks = tasks_tool["func"](project_id)
+                        
+                        gathered[f"project_{project_id}"] = {
+                            "details": json.loads(project_data),
+                            "all_tasks": json.loads(project_tasks)
+                        }
+                
+                except json.JSONDecodeError as e:
+                    state.error = f"Failed to parse data for task {task_id}: {str(e)}. Raw data: {task_data[:200]}"
+                    return
+                    
             state.gathered_data = gathered
             state.reasoning_chain.append(f"Gathered data for {len(task_ids)} tasks and their project contexts")
     
@@ -411,6 +498,13 @@ class AIAgent:
             state.proposed_changes = analysis_result["proposed_changes"]
             state.confidence_score = analysis_result["confidence_score"]
             state.reasoning_chain.extend(analysis_result["reasoning_steps"])
+        elif operation == OperationType.IMPROVE_DESCRIPTION.value:
+            # Use AI to analyze and propose description improvements
+            analysis_result = await self._analyze_description_improvement(state.gathered_data, state.request)
+            state.analysis = analysis_result["analysis"]
+            state.proposed_changes = analysis_result["proposed_changes"]
+            state.confidence_score = analysis_result["confidence_score"]
+            state.reasoning_chain.extend(analysis_result["reasoning_steps"])
         
         state.ready_for_preview = True
     
@@ -421,6 +515,12 @@ class AIAgent:
         # Extract original data for preview
         original_data = {}
         if operation == OperationType.SPLIT_TASK.value:
+            task_ids = state.request.get("task_ids", [])
+            for task_id in task_ids:
+                task_key = f"task_{task_id}"
+                if task_key in state.gathered_data:
+                    original_data[task_key] = state.gathered_data[task_key]
+        elif operation == OperationType.IMPROVE_DESCRIPTION.value:
             task_ids = state.request.get("task_ids", [])
             for task_id in task_ids:
                 task_key = f"task_{task_id}"
@@ -501,6 +601,48 @@ class AIAgent:
                             "result": result
                         })
                         print("✓ Task deleted successfully")
+                        
+            elif operation == OperationType.IMPROVE_DESCRIPTION.value:
+                print(f"Executing description improvement with {len(state.proposed_changes)} changes...")
+                
+                # Execute description improvement
+                for i, change in enumerate(state.proposed_changes):
+                    print(f"Processing change {i+1}/{len(state.proposed_changes)}: {change['action']}")
+                    
+                    if change["action"] == "update_task":
+                        task_id = change["task_id"]
+                        updates = change["updates"]
+                        print(f"Updating task {task_id} with updates: {updates}")
+                        
+                        # Show the new description length for debugging
+                        if "description" in updates:
+                            new_desc = updates["description"]
+                            print(f"New description length: {len(new_desc)} characters")
+                            print(f"New description preview: {new_desc[:100]}...")
+                        
+                        update_tool = next(t for t in self.tools if t["name"] == "update_task")
+                        result = update_tool["func"](task_id, json.dumps(updates))
+                        
+                        # Parse the result to check if update was successful
+                        try:
+                            result_data = json.loads(result) if isinstance(result, str) else result
+                            if isinstance(result_data, dict) and result_data.get("id") == task_id:
+                                print(f"✓ CONFIRMED: Task {task_id} description updated in database")
+                                print(f"✓ New description length: {len(result_data.get('description', ''))}")
+                                print(f"✓ New description preview: {result_data.get('description', '')[:100]}...")
+                            else:
+                                print(f"⚠️  WARNING: Unexpected update result format: {result}")
+                        except Exception as parse_error:
+                            print(f"⚠️  WARNING: Could not parse update result: {parse_error}")
+                            print(f"Raw result: {result}")
+                        
+                        executed_changes.append({
+                            "action": "updated_task",
+                            "task_id": task_id,
+                            "updates": updates,
+                            "result": result
+                        })
+                        print(f"✓ Task description update completed. API response: {result[:200]}...")
             
             state.analysis["executed_changes"] = executed_changes
             state.execution_complete = True
@@ -811,6 +953,208 @@ class AIAgent:
         # Final fallback
         print("Both AI attempts failed, using fallback analysis")
         return self._fallback_task_analysis(gathered_data, task_ids)
+    
+    async def _analyze_description_improvement(self, gathered_data: Dict, request: Dict) -> Dict[str, Any]:
+        """Use AI to analyze and improve task descriptions"""
+        
+        task_ids = request.get("task_ids", [])
+        if not task_ids:
+            return {
+                "analysis": {"error": "No task IDs provided"},
+                "proposed_changes": [],
+                "confidence_score": 0.0,
+                "reasoning_steps": ["Error: No task IDs provided for description improvement"]
+            }
+        
+        # Build comprehensive context
+        context_parts = []
+        for task_id in task_ids:
+            task_key = f"task_{task_id}"
+            if task_key in gathered_data:
+                task = gathered_data[task_key]
+                context_parts.append(f"""
+                                Task to Improve (ID: {task_id}):
+                                - Title: {task.get('title', 'N/A')}
+                                - Current Description: {task.get('description', 'No description')}
+                                - Priority: {task.get('priority', 'medium')}
+                                - Estimated Time: {task.get('estimated_minutes', 15)} minutes
+                                - Energy Level: {task.get('energy_level', 'medium')}
+                                - Status: {task.get('status', 'pending')}
+                                - Context: {task.get('context', 'N/A')}""")
+                
+                # Add project context
+                project_id = task.get('project_id')
+                if project_id and f"project_{project_id}" in gathered_data:
+                    project_data = gathered_data[f"project_{project_id}"]
+                    project_details = project_data.get("details", {})
+                    all_tasks = project_data.get("all_tasks", [])
+                    
+                    context_parts.append(f"""
+                                            Project Context:
+                                            - Project: {project_details.get('title', 'N/A')}
+                                            - Description: {project_details.get('description', 'N/A')}
+                                            - Location: {project_details.get('location', 'N/A')}
+                                            - Existing Tasks: {len(all_tasks)} total tasks
+                                            - Related Tasks: {[t.get('title', 'N/A') for t in all_tasks[-5:] if not t.get('is_completed', False)]}""")
+        
+        context_text = "\n".join(context_parts)
+        
+        prompt = f"""You are an expert productivity consultant specializing in creating clear, actionable task descriptions.
+
+                    {context_text}
+
+                    Your task is to analyze the given task(s) and improve their descriptions to make them more actionable, detailed, and easier to execute.
+
+                    Please provide your analysis in this exact JSON format:
+                    {{
+                    "reasoning_steps": [
+                        "Step-by-step analysis of current description quality",
+                        "Identify what's missing or unclear",
+                        "Explain how improvements will help with execution"
+                    ],
+                    "task_improvements": [
+                        {{
+                        "task_id": {task_ids[0] if task_ids else 'null'},
+                        "current_description": "Current task description",
+                        "improved_description": "Enhanced, actionable description with specific steps, success criteria, and context",
+                        "improvement_rationale": "Why this improved description is better",
+                        "key_additions": [
+                            "What specific information was added",
+                            "Clarifications made to execution steps",
+                            "Success criteria or completion indicators"
+                        ]
+                        }}
+                    ],
+                    "confidence_score": 0.85,
+                    "impact_assessment": "This improved description will help by...",
+                    "recommendations": [
+                        "Additional suggestions for task management or execution"
+                    ]
+                    }}
+
+                    Key principles for description improvement:
+                    1. Add specific action steps when missing
+                    2. Include success criteria or completion indicators
+                    3. Clarify any ambiguous terms or requirements
+                    4. Add relevant context or prerequisites
+                    5. Make the task more self-contained and actionable
+                    6. Maintain the original scope while adding clarity
+                    """
+
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    f"{self.ollama_base_url}/api/generate",
+                    json={
+                        "model": self.model,
+                        "prompt": prompt,
+                        "stream": False,
+                        "options": {
+                            "temperature": 0.3,  # Lower temperature for more focused analysis
+                            "top_p": 0.9
+                        }
+                    }
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    ai_response = result.get("response", "")
+                    
+                    # Enhanced cleaning and parsing of AI response
+                    clean_response = ai_response.strip()
+                    
+                    # Remove thinking tags for reasoning models
+                    if "<think>" in clean_response and "</think>" in clean_response:
+                        start = clean_response.find("</think>") + len("</think>")
+                        clean_response = clean_response[start:].strip()
+                    
+                    # Remove any leading/trailing markdown
+                    if clean_response.startswith("```json"):
+                        clean_response = clean_response[7:]
+                    elif clean_response.startswith("```"):
+                        clean_response = clean_response[3:]
+                    if clean_response.endswith("```"):
+                        clean_response = clean_response[:-3]
+                    clean_response = clean_response.strip()
+                    
+                    # Try to extract JSON from response if there's extra text
+                    json_start = clean_response.find("{")
+                    json_end = clean_response.rfind("}") + 1
+                    if json_start >= 0 and json_end > json_start:
+                        clean_response = clean_response[json_start:json_end]
+                    
+                    analysis_data = json.loads(clean_response)
+                    
+                    # Convert to our format
+                    proposed_changes = []
+                    for improvement in analysis_data.get("task_improvements", []):
+                        proposed_changes.append({
+                            "action": "update_task",
+                            "task_id": improvement.get("task_id"),
+                            "updates": {
+                                "description": improvement.get("improved_description", "")
+                            },
+                            "rationale": improvement.get("improvement_rationale", ""),
+                            "key_additions": improvement.get("key_additions", [])
+                        })
+                    
+                    return {
+                        "analysis": analysis_data,
+                        "proposed_changes": proposed_changes,
+                        "confidence_score": analysis_data.get("confidence_score", 0.75),
+                        "reasoning_steps": analysis_data.get("reasoning_steps", ["AI analysis completed"])
+                    }
+                else:
+                    print(f"AI service error: {response.status_code}")
+                    return self._fallback_description_analysis(gathered_data, task_ids)
+                    
+        except json.JSONDecodeError as e:
+            print(f"AI response parsing failed - Error: {str(e)}")
+            return self._fallback_description_analysis(gathered_data, task_ids)
+            
+        except Exception as e:
+            print(f"AI analysis failed - Error: {str(e)}")
+            return self._fallback_description_analysis(gathered_data, task_ids)
+
+    def _fallback_description_analysis(self, gathered_data: Dict, task_ids: List[int]) -> Dict[str, Any]:
+        """Fallback description improvement when AI analysis fails"""
+        proposed_changes = []
+        
+        for task_id in task_ids:
+            task_key = f"task_{task_id}"
+            if task_key in gathered_data:
+                task = gathered_data[task_key]
+                current_desc = task.get("description", "")
+                
+                # Create a basic improved description
+                title = task.get("title", "Task")
+                improved_desc = current_desc
+                
+                if not current_desc or len(current_desc.strip()) < 10:
+                    improved_desc = f"Complete {title.lower()}. Steps: 1) Review requirements 2) Execute the task 3) Verify completion."
+                else:
+                    # Add basic improvements
+                    if not any(keyword in current_desc.lower() for keyword in ["step", "goal", "complete", "result"]):
+                        improved_desc += f"\n\nGoal: Successfully complete {title.lower()}.\nSuccess criteria: Task is finished and meets requirements."
+                
+                proposed_changes.append({
+                    "action": "update_task",
+                    "task_id": task_id,
+                    "updates": {
+                        "description": improved_desc
+                    },
+                    "rationale": "Basic description enhancement with clearer structure",
+                    "key_additions": ["Added success criteria", "Improved clarity"]
+                })
+        
+        return {
+            "analysis": {
+                "impact_assessment": "Basic description improvements to add clarity and structure"
+            },
+            "proposed_changes": proposed_changes,
+            "confidence_score": 0.6,
+            "reasoning_steps": ["Fallback analysis: Enhanced descriptions with basic improvements"]
+        }
     
     def _fallback_task_analysis(self, gathered_data: Dict, task_ids: List[int]) -> Dict[str, Any]:
         """Fallback analysis when AI is unavailable"""

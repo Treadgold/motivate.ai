@@ -89,6 +89,7 @@ class MotivateAIApp:
         # Refresh main window if open
         if self.main_window:
             self.main_window.load_tasks_list()
+            self.main_window.load_projects_list()  # Refresh project pane with updated statistics
         
         # Show notification
         if self.tray_manager:
@@ -217,7 +218,7 @@ class MotivateAIApp:
                         print("🔄 Continuing without system tray...")
                         self.tray_thread = None
                 
-                time.sleep(0.1)  # Reduced sleep for more responsive action processing
+                time.sleep(0.05)  # Further reduced sleep for better responsiveness
                 
         except KeyboardInterrupt:
             print("\n🛑 Shutdown requested by user")

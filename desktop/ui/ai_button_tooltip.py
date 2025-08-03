@@ -40,19 +40,43 @@ class ToolTip:
 
 def add_ai_button_tooltip(button, task_data):
     """Add informative tooltip to AI button"""
-    estimated_time = task_data.get("estimated_time", 0)
+    estimated_time = task_data.get("estimated_minutes", 0)
     title_length = len(task_data.get("title", ""))
+    description = task_data.get("description", "")
     
-    if estimated_time > 15 or title_length > 25:
-        tooltip_text = (f"🤖 AI Task Splitting\n\n"
-                       f"Break this task into smaller, manageable pieces\n"
-                       f"• Estimated time: {estimated_time} min\n"
-                       f"• Title complexity: {'High' if title_length > 40 else 'Medium'}\n\n"
-                       f"Click to analyze with AI (takes 10-30 seconds)")
+    # Determine if task could benefit from splitting or description improvement
+    needs_splitting = estimated_time > 15 or title_length > 25
+    needs_description = not description or len(description.strip()) < 20
+    
+    if needs_splitting and needs_description:
+        tooltip_text = (f"🤖 AI Task Assistant\n\n"
+                       f"Multiple AI capabilities available:\n"
+                       f"• Split Task - Break into smaller pieces\n"
+                       f"• Improve Description - Add more detail\n\n"
+                       f"Estimated time: {estimated_time} min\n"
+                       f"Description: {'Missing/Brief' if needs_description else 'Complete'}\n\n"
+                       f"Click to choose AI capability (takes 10-30 seconds)")
+    elif needs_splitting:
+        tooltip_text = (f"🤖 AI Task Assistant\n\n"
+                       f"Recommended: Split this complex task\n"
+                       f"• Split Task - Break into manageable pieces\n"
+                       f"• Improve Description - Enhance details\n\n"
+                       f"Estimated time: {estimated_time} min\n\n"
+                       f"Click to choose AI capability (takes 10-30 seconds)")
+    elif needs_description:
+        tooltip_text = (f"🤖 AI Task Assistant\n\n"
+                       f"Recommended: Improve task description\n"
+                       f"• Split Task - Break into subtasks\n"
+                       f"• Improve Description - Add actionable details\n\n"
+                       f"Description: {'Missing' if not description else 'Brief'}\n\n"
+                       f"Click to choose AI capability (takes 10-30 seconds)")
     else:
-        tooltip_text = (f"🤖 AI Assistant\n\n"
-                       f"This task is already quite manageable,\n"
-                       f"but AI can still help break it down further\n\n"
-                       f"Click to analyze with AI (takes 10-30 seconds)")
+        tooltip_text = (f"🤖 AI Task Assistant\n\n"
+                       f"AI capabilities available:\n"
+                       f"• Split Task - Break into smaller pieces\n"
+                       f"• Improve Description - Enhance clarity\n\n"
+                       f"This task looks well-structured, but AI can\n"
+                       f"still help optimize it further\n\n"
+                       f"Click to choose AI capability (takes 10-30 seconds)")
     
     ToolTip(button, tooltip_text) 

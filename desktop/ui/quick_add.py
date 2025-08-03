@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Callable
 import requests
 import os
 import threading
+from .theme_manager import get_color, get_button_colors
 
 
 class QuickAddDialog:
@@ -144,7 +145,7 @@ class QuickAddDialog:
         main_frame.pack(fill="both", expand=True, padx=20, pady=20)
         
         # Header
-        header_frame = ctk.CTkFrame(main_frame, height=60, fg_color=("gray90", "gray10"))
+        header_frame = ctk.CTkFrame(main_frame, height=60, fg_color=get_color("surface_primary"))
         header_frame.pack(fill="x", pady=(0, 15))
         header_frame.pack_propagate(False)
         
@@ -189,13 +190,13 @@ class QuickAddDialog:
         self.project_combo.set(project_names[0])
         
         # Time and Priority row
-        details_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
+        details_frame = ctk.CTkFrame(form_frame, fg_color=get_color("surface_transparent"))
         details_frame.pack(fill="x", padx=20, pady=(0, 15))
         details_frame.grid_columnconfigure(0, weight=1)
         details_frame.grid_columnconfigure(1, weight=1)
         
         # Time
-        time_frame = ctk.CTkFrame(details_frame, fg_color="transparent")
+        time_frame = ctk.CTkFrame(details_frame, fg_color=get_color("surface_transparent"))
         time_frame.grid(row=0, column=0, sticky="ew", padx=(0, 10))
         ctk.CTkLabel(time_frame, text="Time (min):", 
                     font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", pady=(0, 5))
@@ -206,7 +207,7 @@ class QuickAddDialog:
         self.time_entry.pack(fill="x")
         
         # Priority
-        priority_frame = ctk.CTkFrame(details_frame, fg_color="transparent")
+        priority_frame = ctk.CTkFrame(details_frame, fg_color=get_color("surface_transparent"))
         priority_frame.grid(row=0, column=1, sticky="ew", padx=(10, 0))
         ctk.CTkLabel(priority_frame, text="Priority:", 
                     font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", pady=(0, 5))
@@ -219,29 +220,32 @@ class QuickAddDialog:
         self.priority_combo.pack(fill="x")
         
         # Buttons
-        button_frame = ctk.CTkFrame(main_frame, fg_color=("gray95", "gray15"))
+        button_frame = ctk.CTkFrame(main_frame, fg_color=get_color("surface_secondary"))
         button_frame.pack(fill="x", pady=(0, 0))
         
         # Button container
-        btn_container = ctk.CTkFrame(button_frame, fg_color="transparent")
+        btn_container = ctk.CTkFrame(button_frame, fg_color=get_color("surface_transparent"))
         btn_container.pack(pady=15, padx=20)
         
         # Add Task button (primary)
+        add_colors = get_button_colors("success")
         ctk.CTkButton(btn_container, text="✓ Add Task", command=self.add_and_close,
                      height=40, width=110, font=ctk.CTkFont(size=14, weight="bold"),
-                     fg_color=("green", "darkgreen"), hover_color=("darkgreen", "green")
+                     **add_colors
                      ).pack(side="left", padx=(0, 10))
         
         # Add Another button
+        another_colors = get_button_colors("primary")
         ctk.CTkButton(btn_container, text="+ Add Another", command=self.add_another,
                      height=40, width=120, font=ctk.CTkFont(size=13),
-                     fg_color=("blue", "darkblue"), hover_color=("darkblue", "blue")
+                     **another_colors
                      ).pack(side="left", padx=(0, 10))
         
         # Cancel button
+        cancel_colors = get_button_colors("secondary")
         ctk.CTkButton(btn_container, text="Cancel", command=self.close_dialog,
                      height=40, width=80, font=ctk.CTkFont(size=13),
-                     fg_color=("gray", "gray40"), hover_color=("darkgray", "gray60")
+                     **cancel_colors
                      ).pack(side="left")
         
         # Keyboard shortcuts
@@ -325,7 +329,7 @@ class QuickAddDialog:
         
         # Could also highlight the problematic field
         if "title" in message.lower():
-            self.title_entry.configure(border_color="red")
+            self.title_entry.configure(border_color=get_color("border_error"))
             self.title_entry.focus()
     
     def clear_form(self):
@@ -334,7 +338,7 @@ class QuickAddDialog:
         self.title_entry.focus()
         
         # Reset any error highlighting
-        self.title_entry.configure(border_color=("gray60", "gray50"))
+        self.title_entry.configure(border_color=get_color("border_default"))
     
     def add_and_close(self):
         """Add the task and close the dialog"""

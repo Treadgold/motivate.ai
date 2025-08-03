@@ -1,7 +1,8 @@
 """
-AI Split Task Preview Dialog
+AI Assistant Dialog
 
-Beautiful dialog for showing AI task splitting proposals with reasoning,
+Beautiful dialog for showing AI task assistance including task splitting,
+description improvement, and other AI capabilities with reasoning,
 confidence scores, and user approval/rejection options.
 """
 
@@ -11,29 +12,31 @@ from typing import Dict, List, Any, Callable, Optional
 import threading
 import time
 
-class AISplitPreviewDialog:
-    def __init__(self, parent, task_data: Dict, on_approve: Callable, on_cancel: Callable):
+class AIAssistantDialog:
+    def __init__(self, parent, task_data: Dict, on_approve: Callable, on_cancel: Callable, default_operation: str = "split_task"):
         """
-        Initialize the AI split preview dialog
+        Initialize the AI assistant dialog
         
         Args:
             parent: Parent window
             task_data: Original task data
             on_approve: Callback when user approves (preview_data)
             on_cancel: Callback when user cancels
+            default_operation: Default operation to select ("split_task" or "improve_description")
         """
         self.parent = parent
         self.task_data = task_data
         self.on_approve = on_approve
         self.on_cancel = on_cancel
         self.preview_data = None
+        self.current_operation = default_operation
         
         # Create dialog window
         self.dialog = ctk.CTkToplevel(parent)
-        self.dialog.title("🤖 AI Task Splitting Assistant")
-        self.dialog.geometry("900x700")
+        self.dialog.title("🤖 AI Task Assistant")
+        self.dialog.geometry("900x750")
         self.dialog.resizable(True, True)
-        self.dialog.minsize(800, 600)
+        self.dialog.minsize(800, 650)
         
         # Make modal
         self.dialog.transient(parent)
@@ -44,13 +47,13 @@ class AISplitPreviewDialog:
         
         # Configure grid weights
         self.dialog.grid_columnconfigure(0, weight=1)
-        self.dialog.grid_rowconfigure(1, weight=1)
+        self.dialog.grid_rowconfigure(2, weight=1)  # Updated for operation selection row
         
         # Setup UI
         self.setup_ui()
         
-        # Start AI analysis immediately
-        self.start_ai_analysis()
+        # Don't start analysis immediately - wait for user to select operation or click analyze
+        # self.start_ai_analysis()
     
     def center_dialog(self):
         """Center dialog on parent window"""
@@ -64,7 +67,7 @@ class AISplitPreviewDialog:
         
         # Calculate center position
         dialog_width = 900
-        dialog_height = 700
+        dialog_height = 750
         x = parent_x + (parent_width - dialog_width) // 2
         y = parent_y + (parent_height - dialog_height) // 2
         
@@ -75,16 +78,19 @@ class AISplitPreviewDialog:
         # Header
         self.create_header()
         
+        # Operation selection area
+        self.create_operation_selection()
+        
         # Main content area (scrollable)
         self.main_frame = ctk.CTkScrollableFrame(self.dialog)
-        self.main_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=(10, 20))
+        self.main_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(10, 20))
         self.main_frame.grid_columnconfigure(0, weight=1)
         
         # Footer with action buttons
         self.create_footer()
         
-        # Initially show loading state
-        self.show_loading_state()
+        # Initially show selection state
+        self.show_selection_state()
     
     def create_header(self):
         """Create the dialog header"""
@@ -102,11 +108,11 @@ class AISplitPreviewDialog:
         title_text = ctk.CTkFrame(title_frame, fg_color="transparent")
         title_text.grid(row=0, column=1)
         
-        title_label = ctk.CTkLabel(title_text, text="AI Task Splitting Assistant", 
+        title_label = ctk.CTkLabel(title_text, text="AI Task Assistant", 
                                   font=ctk.CTkFont(size=20, weight="bold"))
         title_label.grid(row=0, column=0, sticky="w")
         
-        subtitle_label = ctk.CTkLabel(title_text, text="Analyzing your task and proposing optimal subtasks", 
+        subtitle_label = ctk.CTkLabel(title_text, text="Choose an AI capability to enhance your task", 
                                      font=ctk.CTkFont(size=12), text_color="gray")
         subtitle_label.grid(row=1, column=0, sticky="w")
         
@@ -117,10 +123,62 @@ class AISplitPreviewDialog:
                                  hover_color=("gray70", "gray30"))
         close_btn.grid(row=0, column=1, sticky="e", padx=20, pady=20)
     
+    def create_operation_selection(self):
+        """Create the operation selection area"""
+        selection_frame = ctk.CTkFrame(self.dialog, height=100)
+        selection_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=(10, 0))
+        selection_frame.grid_columnconfigure(1, weight=1)
+        
+        # Operation selection label
+        operation_label = ctk.CTkLabel(selection_frame, text="🎯 Select AI Capability:", 
+                                      font=ctk.CTkFont(size=14, weight="bold"))
+        operation_label.grid(row=0, column=0, sticky="w", padx=20, pady=(15, 5))
+        
+        # Operation dropdown
+        operation_options = [
+            "Split Task - Break down into manageable subtasks",
+            "Improve Description - Enhance task details and clarity"
+        ]
+        
+        # Map display names to operation values
+        self.operation_map = {
+            "Split Task - Break down into manageable subtasks": "split_task",
+            "Improve Description - Enhance task details and clarity": "improve_description"
+        }
+        
+        # Set default selection based on current operation
+        default_display = next((k for k, v in self.operation_map.items() if v == self.current_operation), 
+                              operation_options[0])
+        
+        self.operation_dropdown = ctk.CTkOptionMenu(selection_frame, 
+                                                   values=operation_options,
+                                                   command=self.on_operation_changed,
+                                                   width=500,
+                                                   font=ctk.CTkFont(size=12))
+        self.operation_dropdown.set(default_display)
+        self.operation_dropdown.grid(row=1, column=0, sticky="w", padx=20, pady=(0, 10))
+        
+        # Analyze button
+        self.analyze_btn = ctk.CTkButton(selection_frame, text="🔍 Analyze Task", 
+                                        command=self.start_ai_analysis,
+                                        width=150, height=40,
+                                        font=ctk.CTkFont(size=13, weight="bold"),
+                                        fg_color=("blue", "darkblue"), 
+                                        hover_color=("darkblue", "blue"))
+        self.analyze_btn.grid(row=1, column=1, sticky="e", padx=20, pady=(0, 10))
+    
+    def on_operation_changed(self, selected_option: str):
+        """Handle operation selection change"""
+        self.current_operation = self.operation_map[selected_option]
+        # Reset preview data when operation changes
+        self.preview_data = None
+        # Show selection state again
+        self.show_selection_state()
+    
     def create_footer(self):
         """Create the dialog footer with action buttons"""
         self.footer_frame = ctk.CTkFrame(self.dialog, height=80)
-        self.footer_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 20))
+        self.footer_frame.grid(row=3, column=0, sticky="ew", padx=20, pady=(0, 20))
         self.footer_frame.grid_columnconfigure(1, weight=1)
         
         # Status indicator
@@ -146,11 +204,42 @@ class AISplitPreviewDialog:
         self.cancel_btn.grid(row=0, column=0, padx=(0, 10))
         
         # Approve button (hidden initially)
-        self.approve_btn = ctk.CTkButton(self.action_frame, text="✓ Split Task", width=120, height=40,
-                                        command=self.approve_split,
+        self.approve_btn = ctk.CTkButton(self.action_frame, text="✓ Apply Changes", width=120, height=40,
+                                        command=self.approve_changes,
                                         fg_color=("green", "darkgreen"), 
                                         hover_color=("darkgreen", "green"))
         # Will be shown when preview is ready
+    
+    def show_selection_state(self):
+        """Show initial selection state"""
+        # Clear main frame
+        for widget in self.main_frame.winfo_children():
+            widget.destroy()
+        
+        # Update status
+        self.status_icon.configure(text="🎯")
+        self.status_label.configure(text="Select an AI capability and click Analyze Task")
+        
+        # Hide approve button
+        self.approve_btn.grid_remove()
+        
+        # Selection instructions
+        instruction_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        instruction_frame.grid(row=0, column=0, pady=50)
+        
+        # Instruction icon
+        instruction_icon = ctk.CTkLabel(instruction_frame, text="👆", font=ctk.CTkFont(size=48))
+        instruction_icon.grid(row=0, column=0, pady=(0, 20))
+        
+        instruction_text = ctk.CTkLabel(instruction_frame, text="Choose your AI capability above and click 'Analyze Task' to get started", 
+                                       font=ctk.CTkFont(size=16, weight="bold"))
+        instruction_text.grid(row=1, column=0, pady=(0, 10))
+        
+        instruction_detail = ctk.CTkLabel(instruction_frame, 
+                                         text="• Split Task: Break complex tasks into manageable subtasks\n• Improve Description: Enhance task details for better clarity",
+                                         font=ctk.CTkFont(size=12), text_color="gray",
+                                         justify="left")
+        instruction_detail.grid(row=2, column=0)
     
     def show_loading_state(self):
         """Show loading animation while AI analyzes"""
@@ -166,12 +255,20 @@ class AISplitPreviewDialog:
         self.loading_icon = ctk.CTkLabel(loading_frame, text="🤖", font=ctk.CTkFont(size=64))
         self.loading_icon.grid(row=0, column=0, pady=(0, 20))
         
-        loading_text = ctk.CTkLabel(loading_frame, text="AI is analyzing your task...", 
+        # Dynamic loading text based on operation
+        if self.current_operation == "split_task":
+            loading_text_str = "AI is analyzing your task for splitting..."
+            loading_subtitle_str = "⏰ This typically takes 10-30 seconds\n🧠 Breaking down complexity and identifying optimal subtasks\n💡 Please be patient while AI works its magic"
+        else:  # improve_description
+            loading_text_str = "AI is improving your task description..."
+            loading_subtitle_str = "⏰ This typically takes 10-30 seconds\n🧠 Analyzing context and enhancing details\n💡 Please be patient while AI crafts better description"
+        
+        loading_text = ctk.CTkLabel(loading_frame, text=loading_text_str, 
                                    font=ctk.CTkFont(size=18, weight="bold"))
         loading_text.grid(row=1, column=0, pady=(0, 10))
         
         loading_subtitle = ctk.CTkLabel(loading_frame, 
-                                       text="⏰ This typically takes 10-30 seconds\n🧠 Breaking down complexity and identifying optimal subtasks\n💡 Please be patient while AI works its magic",
+                                       text=loading_subtitle_str,
                                        font=ctk.CTkFont(size=12), text_color="gray",
                                        justify="center")
         loading_subtitle.grid(row=2, column=0)
@@ -201,6 +298,9 @@ class AISplitPreviewDialog:
     
     def start_ai_analysis(self):
         """Start AI analysis in background thread with polling-based result handling"""
+        # Show loading state immediately for instant user feedback
+        self.show_loading_state()
+        
         # Initialize result storage
         self.analysis_result = None
         self.analysis_error = None
@@ -214,15 +314,25 @@ class AISplitPreviewDialog:
                 
                 api_base_url = os.getenv("API_BASE_URL", "http://127.0.0.1:8010/api/v1")
                 
-                # Make request to AI agent
-                request_data = {
-                    "operation": "split_task",
-                    "task_ids": [self.task_data.get("id")],
-                    "context": {
-                        "user_preference": "prefer smaller, manageable tasks",
-                        "work_style": "focused work sessions"
+                # Make request to AI agent based on current operation
+                if self.current_operation == "split_task":
+                    request_data = {
+                        "operation": "split_task",
+                        "task_ids": [self.task_data.get("id")],
+                        "context": {
+                            "user_preference": "prefer smaller, manageable tasks",
+                            "work_style": "focused work sessions"
+                        }
                     }
-                }
+                else:  # improve_description
+                    request_data = {
+                        "operation": "improve_description",
+                        "task_ids": [self.task_data.get("id")],
+                        "context": {
+                            "user_preference": "detailed, actionable descriptions",
+                            "goal": "make tasks easier to understand and execute"
+                        }
+                    }
                 
                 response = requests.post(f"{api_base_url}/ai-agent/preview", 
                                        json=request_data, timeout=600)
@@ -293,7 +403,12 @@ class AISplitPreviewDialog:
             # Update status
             confidence = preview_data.get("confidence_score", 0.0)
             self.status_icon.configure(text="✨")
-            self.status_label.configure(text=f"Analysis complete! Confidence: {confidence:.0%}")
+            if self.current_operation == "split_task":
+                self.status_label.configure(text=f"Task analysis complete! Confidence: {confidence:.0%}")
+                self.approve_btn.configure(text="✓ Split Task")
+            else:  # improve_description
+                self.status_label.configure(text=f"Description analysis complete! Confidence: {confidence:.0%}")
+                self.approve_btn.configure(text="✓ Update Description")
             
             # Show approve button
             self.approve_btn.grid(row=0, column=1, padx=(0, 0))
@@ -319,8 +434,12 @@ class AISplitPreviewDialog:
         # AI reasoning section
         self.create_reasoning_section(preview_data)
         
-        # Proposed subtasks section
-        self.create_subtasks_section(preview_data)
+        if self.current_operation == "split_task":
+            # Proposed subtasks section
+            self.create_subtasks_section(preview_data)
+        else:  # improve_description
+            # Improved description section
+            self.create_improved_description_section(preview_data)
         
         # Confidence and impact section
         self.create_confidence_section(preview_data)
@@ -461,6 +580,89 @@ class AISplitPreviewDialog:
                                      font=ctk.CTkFont(size=10), text_color="gray")
             meta_label.grid(row=2, column=0, sticky="w")
     
+    def create_improved_description_section(self, preview_data: Dict):
+        """Create section showing the improved description"""
+        section_frame = ctk.CTkFrame(self.main_frame)
+        section_frame.grid(row=2, column=0, sticky="ew", pady=(0, 20))
+        section_frame.grid_columnconfigure(0, weight=1)
+        
+        # Section header
+        header_label = ctk.CTkLabel(section_frame, text="✨ Improved Description", 
+                                   font=ctk.CTkFont(size=16, weight="bold"))
+        header_label.grid(row=0, column=0, sticky="w", padx=20, pady=(15, 10))
+        
+        # Get the improved description from proposed changes
+        proposed_changes = preview_data.get("proposed_changes", [])
+        update_action = next((change for change in proposed_changes if change.get("action") == "update_task"), None)
+        
+        if update_action and update_action.get("updates"):
+            new_description = update_action["updates"].get("description", "No improved description found")
+            
+            # Before/After comparison
+            comparison_frame = ctk.CTkFrame(section_frame, fg_color="transparent")
+            comparison_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 15))
+            comparison_frame.grid_columnconfigure(0, weight=1)
+            comparison_frame.grid_columnconfigure(1, weight=1)
+            
+            # Original description (left side)
+            original_frame = ctk.CTkFrame(comparison_frame, fg_color=("gray95", "gray15"))
+            original_frame.grid(row=0, column=0, sticky="ew", padx=(0, 10), pady=5)
+            original_frame.grid_columnconfigure(0, weight=1)
+            
+            original_title = ctk.CTkLabel(original_frame, text="📝 Current Description", 
+                                         font=ctk.CTkFont(size=13, weight="bold"))
+            original_title.grid(row=0, column=0, sticky="w", padx=15, pady=(15, 10))
+            
+            original_desc = self.task_data.get("description", "No description")
+            if not original_desc or original_desc.strip() == "":
+                original_desc = "(No description provided)"
+                
+            original_text = ctk.CTkLabel(original_frame, text=original_desc,
+                                        font=ctk.CTkFont(size=11), 
+                                        wraplength=350, justify="left",
+                                        text_color="gray")
+            original_text.grid(row=1, column=0, sticky="w", padx=15, pady=(0, 15))
+            
+            # Improved description (right side)  
+            improved_frame = ctk.CTkFrame(comparison_frame, fg_color=("#E8F5E8", "#2E7D32"))
+            improved_frame.grid(row=0, column=1, sticky="ew", padx=(10, 0), pady=5)
+            improved_frame.grid_columnconfigure(0, weight=1)
+            
+            improved_title = ctk.CTkLabel(improved_frame, text="✨ Improved Description", 
+                                         font=ctk.CTkFont(size=13, weight="bold"))
+            improved_title.grid(row=0, column=0, sticky="w", padx=15, pady=(15, 10))
+            
+            improved_text = ctk.CTkLabel(improved_frame, text=new_description,
+                                        font=ctk.CTkFont(size=11), 
+                                        wraplength=350, justify="left")
+            improved_text.grid(row=1, column=0, sticky="w", padx=15, pady=(0, 15))
+            
+            # Improvements summary
+            improvements_frame = ctk.CTkFrame(section_frame, fg_color=("#E3F2FD", "#1976D2"))
+            improvements_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(10, 15))
+            improvements_frame.grid_columnconfigure(0, weight=1)
+            
+            improvements_title = ctk.CTkLabel(improvements_frame, text="🎯 Key Improvements", 
+                                             font=ctk.CTkFont(size=12, weight="bold"))
+            improvements_title.grid(row=0, column=0, sticky="w", padx=15, pady=(15, 5))
+            
+            # Extract improvements from reasoning or create summary
+            reasoning = preview_data.get("reasoning", "")
+            if "improvements:" in reasoning.lower():
+                improvements_text = reasoning.split("improvements:", 1)[1].strip()
+            else:
+                improvements_text = "• Added more specific details and context\n• Clarified expected outcomes and success criteria\n• Improved actionability and clarity"
+                
+            improvements_label = ctk.CTkLabel(improvements_frame, text=improvements_text,
+                                             font=ctk.CTkFont(size=11), 
+                                             wraplength=800, justify="left")
+            improvements_label.grid(row=1, column=0, sticky="w", padx=15, pady=(0, 15))
+        else:
+            # No improvements found
+            no_improvements_label = ctk.CTkLabel(section_frame, text="No description improvements were proposed by the AI",
+                                               font=ctk.CTkFont(size=12), text_color="gray")
+            no_improvements_label.grid(row=1, column=0, pady=20)
+    
     def create_confidence_section(self, preview_data: Dict):
         """Create section showing confidence and impact assessment"""
         section_frame = ctk.CTkFrame(self.main_frame)
@@ -552,8 +754,8 @@ class AISplitPreviewDialog:
         self.show_loading_state()
         self.start_ai_analysis()
     
-    def approve_split(self):
-        """User approved the split - execute it"""
+    def approve_changes(self):
+        """User approved the changes - execute them"""
         if self.preview_data:
             self.on_approve(self.preview_data)
         self.close_dialog()
@@ -566,9 +768,26 @@ class AISplitPreviewDialog:
         self.dialog.destroy()
 
 
+def show_ai_assistant_dialog(parent, task_data: Dict, on_approve: Callable, on_cancel: Callable = None, default_operation: str = "split_task"):
+    """
+    Show the AI assistant dialog with multiple capabilities
+    
+    Args:
+        parent: Parent window
+        task_data: Task data to process
+        on_approve: Callback when approved (preview_data)
+        on_cancel: Callback when cancelled (optional)
+        default_operation: Default operation to select ("split_task" or "improve_description")
+    """
+    if on_cancel is None:
+        on_cancel = lambda: None
+    
+    dialog = AIAssistantDialog(parent, task_data, on_approve, on_cancel, default_operation)
+    return dialog
+
 def show_ai_split_dialog(parent, task_data: Dict, on_approve: Callable, on_cancel: Callable = None):
     """
-    Show the AI split task dialog
+    Show the AI split task dialog (backward compatibility)
     
     Args:
         parent: Parent window
@@ -576,8 +795,16 @@ def show_ai_split_dialog(parent, task_data: Dict, on_approve: Callable, on_cance
         on_approve: Callback when approved (preview_data)
         on_cancel: Callback when cancelled (optional)
     """
-    if on_cancel is None:
-        on_cancel = lambda: None
+    return show_ai_assistant_dialog(parent, task_data, on_approve, on_cancel, "split_task")
+
+def show_ai_improve_description_dialog(parent, task_data: Dict, on_approve: Callable, on_cancel: Callable = None):
+    """
+    Show the AI improve description dialog
     
-    dialog = AISplitPreviewDialog(parent, task_data, on_approve, on_cancel)
-    return dialog 
+    Args:
+        parent: Parent window
+        task_data: Task data to improve description for
+        on_approve: Callback when approved (preview_data)
+        on_cancel: Callback when cancelled (optional)
+    """
+    return show_ai_assistant_dialog(parent, task_data, on_approve, on_cancel, "improve_description") 

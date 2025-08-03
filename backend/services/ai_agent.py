@@ -26,6 +26,7 @@ load_dotenv()
 class OperationType(Enum):
     """Supported AI agent operations"""
     SPLIT_TASK = "split_task"
+    IMPROVE_DESCRIPTION = "improve_description"
     MERGE_TASKS = "merge_tasks"
     DEFINE_PROJECT = "define_new_project"
     OPTIMIZE_WORKFLOW = "optimize_workflow"
@@ -160,15 +161,70 @@ class AIAgent:
             """Update a specific task"""
             try:
                 updates_json = json.loads(updates)
-                response = httpx.put(
-                    f"{self.api_base_url}/tasks/{task_id}",
-                    json=updates_json,
-                    timeout=self.timeout
-                )
-                if response.status_code == 200:
-                    return json.dumps(response.json(), indent=2)
-                else:
-                    return f"Error updating task {task_id}: {response.status_code}"
+                
+                # Try direct database access first (when running in API server)
+                try:
+                    from database import get_db
+                    from models.task import Task
+                    from datetime import datetime
+                    
+                    db = next(get_db())
+                    task = db.query(Task).filter(Task.id == task_id).first()
+                    if not task:
+                        return f"Error: Task {task_id} not found"
+                    
+                    # Apply updates
+                    for field, value in updates_json.items():
+                        if hasattr(task, field):
+                            setattr(task, field, value)
+                    
+                    # Handle completion logic
+                    if "is_completed" in updates_json:
+                        if updates_json["is_completed"] and not task.is_completed:
+                            task.completed_at = datetime.utcnow()
+                            task.status = "completed"
+                        elif not updates_json["is_completed"] and task.is_completed:
+                            task.completed_at = None
+                            if task.status == "completed":
+                                task.status = "pending"
+                    
+                    db.commit()
+                    db.refresh(task)
+                    
+                    # Return updated task data
+                    task_dict = {
+                        "id": task.id,
+                        "project_id": task.project_id,
+                        "title": task.title,
+                        "description": task.description,
+                        "status": task.status,
+                        "priority": task.priority,
+                        "estimated_minutes": task.estimated_minutes,
+                        "actual_minutes": task.actual_minutes,
+                        "is_suggestion": task.is_suggestion,
+                        "energy_level": task.energy_level,
+                        "context": task.context,
+                        "is_completed": task.is_completed,
+                        "created_at": task.created_at.isoformat() if task.created_at else None,
+                        "updated_at": task.updated_at.isoformat() if task.updated_at else None,
+                        "completed_at": task.completed_at.isoformat() if task.completed_at else None
+                    }
+                    return json.dumps(task_dict, indent=2)
+                    
+                except Exception as db_error:
+                    print(f"Database update failed, trying HTTP fallback: {db_error}")
+                    # Fallback to HTTP request
+                    with httpx.Client(timeout=self.timeout) as client:
+                        response = client.put(
+                            f"{self.api_base_url}/tasks/{task_id}",
+                            json=updates_json
+                        )
+                    
+                    if response.status_code == 200:
+                        return json.dumps(response.json(), indent=2)
+                    else:
+                        return f"Error updating task {task_id}: {response.status_code} - {response.text}"
+                        
             except Exception as e:
                 return f"Error updating task {task_id}: {str(e)}"
         

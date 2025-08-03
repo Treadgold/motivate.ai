@@ -87,6 +87,12 @@ async def create_agent_preview(
                     status_code=400,
                     detail="task_ids are required for split_task operation"
                 )
+        elif operation_type == OperationType.IMPROVE_DESCRIPTION:
+            if not request.task_ids or len(request.task_ids) == 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="task_ids are required for improve_description operation"
+                )
         
         # Create agent request
         agent_request = AgentRequest(

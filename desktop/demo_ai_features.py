@@ -60,12 +60,12 @@ def demo_ai_features():
                 if response.status_code == 200:
                     tasks = response.json()
                     complex_tasks = [task for task in tasks 
-                                   if task.get('estimated_time', 0) > 30 or len(task.get('title', '')) > 50]
+                                   if task.get('estimated_minutes', 0) > 30 or len(task.get('title', '')) > 50]
                     
                     if complex_tasks:
                         task = complex_tasks[0]
                         print(f"   🎯 Found complex task: {task['title']}")
-                        print(f"   ⏱️ Estimated time: {task.get('estimated_time', 15)} minutes")
+                        print(f"   ⏱️ Estimated time: {task.get('estimated_minutes', 15)} minutes")
                         
                         # Demo AI split
                         demo_task_split(api_base_url, task)
@@ -167,7 +167,7 @@ def create_demo_data(api_base_url: str):
                 "title": "Implement comprehensive user authentication system with social login, password recovery, and user profile management",
                 "description": "Build a complete user authentication system including user registration, login, logout, password reset via email, social media integration (Google, Facebook, GitHub), user profile editing, avatar upload, account verification, and security features like two-factor authentication and session management.",
                 "priority": "high",
-                "estimated_time": 240,  # 4 hours - perfect for splitting
+                "estimated_minutes": 240,  # 4 hours - perfect for splitting
                 "energy_level": "high",
                 "context": "when you have deep focus time and minimal interruptions"
             }
@@ -176,7 +176,7 @@ def create_demo_data(api_base_url: str):
             if response.status_code == 201:
                 task = response.json()
                 print(f"   ✅ Created complex task: {task['title'][:50]}...")
-                print(f"   ⏱️ Estimated time: {task['estimated_time']} minutes")
+                print(f"   ⏱️ Estimated time: {task['estimated_minutes']} minutes")
                 print(f"   🎯 This task is perfect for AI splitting!")
                 return project, task
             else:
