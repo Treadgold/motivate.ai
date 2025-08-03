@@ -636,31 +636,39 @@ class MainWindow:
             self.enter_edit_mode()
     
     def enter_edit_mode(self):
-        """Enter edit mode - clear formatting and show plain text"""
+        """Enter edit mode - keep formatted text visible for editing"""
         self.desc_editing = True
         
         # If it's placeholder text, clear it
         if not self._original_text:
             self.desc_entry.delete("1.0", tk.END)
         else:
-            # Load the original plain text for editing
-            self.desc_entry.delete("1.0", tk.END)
-            self.desc_entry.insert("1.0", self._original_text)
+            # Keep the current formatted text for editing - don't switch to raw text
+            # This prevents the confusing content change when clicking
+            pass
         
-        # Remove all tags to show plain text
-        for tag in self.desc_entry.tag_names():
-            self.desc_entry.tag_delete(tag)
+        # Keep formatting tags but make text editable
+        # Add a subtle visual indication we're in edit mode
+        self.desc_entry.configure(border_width=2)
         
-        # Configure for editing - focus without changing font
+        # Configure for editing
         self.desc_entry.focus()
     
     def on_description_focus_out(self, event):
-        """Handle focus out - apply formatting if there's content"""
+        """Handle focus out - save content and reset visual indicators"""
         if self.desc_editing:
             current_text = self.desc_entry.get("1.0", tk.END).strip()
+            
+            # Reset border to normal
+            self.desc_entry.configure(border_width=1)
+            
             if current_text:
-                self.apply_markdown_formatting(current_text)
-                self._original_text = current_text
+                # Extract the raw content from formatted text if needed
+                raw_text = self._extract_raw_text_from_formatted(current_text)
+                self._original_text = raw_text
+                
+                # Reapply formatting with the updated content
+                self.apply_markdown_formatting(raw_text)
                 self.desc_editing = False
             else:
                 self.set_description_placeholder()
@@ -721,9 +729,11 @@ class MainWindow:
             current_line += 1
     
     def get_description_text(self):
-        """Get the current description text"""
+        """Get the current description text for saving"""
         if self.desc_editing:
-            return self.desc_entry.get("1.0", tk.END).strip()
+            # Extract raw text from potentially formatted content
+            current_text = self.desc_entry.get("1.0", tk.END).strip()
+            return self._extract_raw_text_from_formatted(current_text)
         else:
             return self._original_text
     
@@ -1332,6 +1342,57 @@ class MainWindow:
             items.append(f"• {text.strip()}")
         
         return items
+    
+    def _extract_raw_text_from_formatted(self, formatted_text):
+        """Convert formatted text back to raw text for storage"""
+        if not formatted_text:
+            return ""
+        
+        import re
+        
+        lines = formatted_text.split('\n')
+        raw_parts = []
+        current_section = ""
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Handle numbered sections
+            if re.match(r'^\d+\.', line):
+                if current_section:
+                    raw_parts.append(current_section)
+                current_section = line
+            
+            # Handle bullet points - convert back to comma-separated
+            elif line.startswith('• '):
+                item = line[2:]  # Remove bullet
+                if current_section:
+                    if ':' in current_section and not current_section.endswith(':'):
+                        current_section += ", " + item
+                    else:
+                        current_section += " " + item
+                else:
+                    raw_parts.append(item)
+            
+            # Handle tips (💡)
+            elif line.startswith('💡 '):
+                tip_text = line[2:]
+                raw_parts.append(f"({tip_text})")
+            
+            # Regular text
+            else:
+                if current_section:
+                    current_section += " " + line
+                else:
+                    raw_parts.append(line)
+        
+        # Add the last section
+        if current_section:
+            raw_parts.append(current_section)
+        
+        return ' '.join(raw_parts)
     
     def _on_task_click(self, event):
         """Optimized task click handler - walks up widget tree to find task_data"""

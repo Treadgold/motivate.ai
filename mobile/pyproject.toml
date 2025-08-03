@@ -1,0 +1,137 @@
+[build-system]
+requires = [
+    "briefcase==0.3.17",
+    "setuptools>=45",
+    "wheel",
+]
+build-backend = "briefcase"
+
+[tool.briefcase]
+project_name = "Motivate.AI Mobile"
+bundle = "ai.motivate"
+version = "0.1.0"
+url = "https://github.com/your-org/motivate.ai"
+license = "MIT"
+author = "Motivate.AI Team"
+author_email = "team@motivate.ai"
+
+description = "Cross-platform task and project management with AI assistance"
+long_description = """
+Motivate.AI Mobile is a powerful, cross-platform task and project management application 
+built with BeeWare. Features include intelligent task organization, project tracking, 
+AI-powered task splitting, and seamless synchronization with the Motivate.AI backend.
+"""
+
+[tool.briefcase.app.motivate_ai]
+formal_name = "Motivate.AI"
+description = "Task and project management with AI assistance"
+long_description = """
+A comprehensive task and project management application that helps you stay organized 
+and motivated. Features AI-powered task splitting, project tracking, and cross-platform 
+synchronization.
+"""
+sources = ["src/motivate_ai"]
+test_sources = ["tests"]
+
+requires = [
+    "httpx>=0.24.0",
+]
+
+test_requires = [
+    "pytest",
+    "pytest-asyncio",
+]
+
+[tool.briefcase.app.motivate_ai.macOS]
+requires = [
+    "toga-cocoa>=0.4.0",
+    "std-nslog~=1.0.0"
+]
+
+[tool.briefcase.app.motivate_ai.linux]
+requires = [
+    "toga-gtk>=0.4.0",
+]
+
+[tool.briefcase.app.motivate_ai.windows]
+requires = [
+    "toga-winforms>=0.4.0",
+]
+
+[tool.briefcase.app.motivate_ai.android]
+requires = [
+    "toga-android>=0.4.0",
+]
+
+[tool.briefcase.app.motivate_ai.iOS]
+requires = [
+    "toga-iOS>=0.4.0",
+    "std-nslog~=1.0.0"
+]
+
+[tool.briefcase.app.motivate_ai.web]
+requires = [
+    "toga-web>=0.4.0",
+]
+
+# Build configuration
+[tool.briefcase.app.motivate_ai.android.gradle_dependencies]
+'androidx.swiperefreshlayout:swiperefreshlayout' = "1.1.0"
+
+[tool.briefcase.app.motivate_ai.android.gradle_extra_content]
+android = """
+    defaultConfig {
+        minSdkVersion 21
+        targetSdkVersion 33
+    }
+"""
+
+[tool.setuptools]
+script-files = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project]
+name = "motivate-ai"
+dynamic = ["version"]
+description = "Cross-platform task and project management with AI assistance"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Motivate.AI Team", email = "team@motivate.ai"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Office/Business :: Scheduling",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+dependencies = [
+    "httpx>=0.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "briefcase",
+    "pytest",
+    "pytest-asyncio",
+    "pre-commit",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-org/motivate.ai"
+Documentation = "https://github.com/your-org/motivate.ai/docs"
+Repository = "https://github.com/your-org/motivate.ai.git"
+"Bug Tracker" = "https://github.com/your-org/motivate.ai/issues"
+
+[project.scripts]
+motivate-ai = "motivate_ai.app:main"

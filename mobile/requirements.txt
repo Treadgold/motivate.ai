@@ -1,0 +1,21 @@
+# Core BeeWare dependencies
+briefcase>=0.3.17
+toga>=0.4.0
+
+# HTTP client for API communication
+httpx>=0.24.0
+
+# Simple HTTP library alternative (lighter than httpx for mobile)
+# requests>=2.25.0
+
+# Development dependencies (optional)
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pre-commit>=3.0.0
+
+# Platform-specific dependencies (will be handled by briefcase)
+# toga-cocoa>=0.4.0  # macOS
+# toga-gtk>=0.4.0    # Linux
+# toga-winforms>=0.4.0  # Windows
+# toga-android>=0.4.0   # Android
+# toga-iOS>=0.4.0    # iOS
